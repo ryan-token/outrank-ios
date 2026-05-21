@@ -5,14 +5,18 @@
 //  Created by Ryan Token on 10/17/21.
 //
 
-import SwiftUI
+import OSLog
 import StoreKit
+import SwiftUI
 
 struct SubscriptionsView: View {
     @Environment(Store.self) private var store
 
     @State private var currentSubscription: Product?
     @State private var status: Product.SubscriptionInfo.Status?
+    @State private var isShowingManageSubscriptions = false
+
+    private let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "SubscriptionsView")
 
     var body: some View {
         List {
@@ -44,9 +48,19 @@ struct SubscriptionsView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Subscriptions")
+        .manageSubscriptionsSheet(isPresented: $isShowingManageSubscriptions)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Restore Purchases", action: restorePurchases)
+                Menu("More", systemImage: "ellipsis.circle") {
+                    Button("Manage Subscription", systemImage: "creditcard") {
+                        isShowingManageSubscriptions = true
+                    }
+                    .disabled(currentSubscription == nil)
+
+                    Button("Restore Purchases", systemImage: "arrow.clockwise") {
+                        Task { await restorePurchases() }
+                    }
+                }
             }
         }
     }
@@ -66,7 +80,7 @@ struct SubscriptionsView: View {
                 case .expired, .revoked:
                     continue
                 default:
-                    let renewalInfo = try store.checkVerified(status.renewalInfo)
+                    let renewalInfo = try status.renewalInfo.payloadValue
 
                     guard let newSubscription = store.subscriptions.first(where: { $0.id == renewalInfo.currentProductID }) else {
                         continue
@@ -91,12 +105,17 @@ struct SubscriptionsView: View {
             status = highestStatus
             currentSubscription = highestProduct
         } catch {
-            print("Could not update subscription status \(error)")
+            logger.error("Could not update subscription status: \(error.localizedDescription)")
         }
     }
 
-    private func restorePurchases() {
-        SKPaymentQueue.default().restoreCompletedTransactions()
+    private func restorePurchases() async {
+        do {
+            try await store.restorePurchases()
+        } catch {
+            HapticGenerator.playErrorHaptic()
+            logger.error("Restore purchases failed: \(error.localizedDescription)")
+        }
     }
 }
 

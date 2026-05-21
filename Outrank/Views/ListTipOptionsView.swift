@@ -5,8 +5,9 @@
 //  Created by Ryan Token on 10/17/21.
 //
 
-import SwiftUI
+import OSLog
 import StoreKit
+import SwiftUI
 
 struct ListTipOptionsView: View {
     @Environment(Store.self) private var store
@@ -16,6 +17,8 @@ struct ListTipOptionsView: View {
 
     let product: Product
     var purchasingEnabled: Bool = true
+
+    private let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "ListTipOptionsView")
 
     private var emoji: String {
         store.emoji(for: product.id)
@@ -52,13 +55,11 @@ struct ListTipOptionsView: View {
         HapticGenerator.playSuccessHaptic()
         do {
             _ = try await store.purchase(product)
-        } catch StoreError.failedVerification {
-            HapticGenerator.playErrorHaptic()
-            errorTitle = "Your purchase could not be verified by the App Store."
-            isShowingError = true
         } catch {
             HapticGenerator.playErrorHaptic()
-            print("Failed purchase for \(product.id): \(error)")
+            errorTitle = "Your purchase could not be completed. Please try again."
+            isShowingError = true
+            logger.error("Failed purchase for \(product.id, privacy: .public): \(error.localizedDescription)")
         }
     }
 

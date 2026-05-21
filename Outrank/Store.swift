@@ -6,11 +6,11 @@
 //
 
 import Foundation
+import OSLog
 import StoreKit
 
 typealias Transaction = StoreKit.Transaction
 typealias RenewalInfo = StoreKit.Product.SubscriptionInfo.RenewalInfo
-typealias RenewalState = StoreKit.Product.SubscriptionInfo.RenewalState
 
 nonisolated enum StoreError: Error {
     case failedVerification
@@ -37,38 +37,36 @@ final class Store {
     private var updateListenerTask: Task<Void, Never>?
 
     private let productIdToEmoji: [String: String]
+    private let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "Store")
 
     init() {
-        if let path = Bundle.main.path(forResource: "Products", ofType: "plist"),
-           let plist = FileManager.default.contents(atPath: path) {
-            productIdToEmoji = (try? PropertyListSerialization.propertyList(from: plist, format: nil) as? [String: String]) ?? [:]
+        if let url = Bundle.main.url(forResource: "Products", withExtension: "plist"),
+           let data = try? Data(contentsOf: url),
+           let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String] {
+            productIdToEmoji = plist
         } else {
             productIdToEmoji = [:]
         }
 
-        // Start a transaction listener as close to app launch as possible so you don't miss any transactions.
+        // Start a transaction listener as close to app launch as possible so we don't miss any transactions.
         updateListenerTask = listenForTransactions()
 
         Task {
-            // Initialize the store by starting a product request.
             await requestProducts()
+            await refreshPurchasedIdentifiers()
         }
     }
 
     private func listenForTransactions() -> Task<Void, Never> {
-        Task {
+        Task { [weak self] in
             for await result in Transaction.updates {
+                guard let self else { return }
                 do {
-                    let transaction = try checkVerified(result)
-
-                    // Deliver content to the user.
+                    let transaction = try result.payloadValue
                     updatePurchasedIdentifiers(transaction)
-
-                    // Always finish a transaction.
                     await transaction.finish()
                 } catch {
-                    // StoreKit has a receipt it can read but it failed verification. Don't deliver content to the user.
-                    print("Transaction failed verification")
+                    logger.error("Transaction failed verification: \(error.localizedDescription)")
                 }
             }
         }
@@ -76,33 +74,41 @@ final class Store {
 
     func requestProducts() async {
         do {
-            // Request products from the App Store using the identifiers defined in the Products.plist file.
             let storeProducts = try await Product.products(for: productIdToEmoji.keys)
 
             var newTips: [Product] = []
             var newSubscriptions: [Product] = []
 
-            // Filter the products into different categories based on their type.
             for product in storeProducts {
                 switch product.type {
                 case .consumable:
                     newTips.append(product)
-                case .nonConsumable:
-                    return
                 case .autoRenewable:
                     newSubscriptions.append(product)
                 default:
-                    // Ignore this product.
-                    print("Unknown product")
+                    logger.notice("Ignoring product \(product.id, privacy: .public) of type \(String(describing: product.type), privacy: .public)")
                 }
             }
 
-            // Sort each product category by price, lowest to highest, to update the store.
             tips = sortByPrice(newTips)
             subscriptions = sortByPrice(newSubscriptions)
         } catch {
-            print("Failed product request: \(error)")
+            logger.error("Failed product request: \(error.localizedDescription)")
         }
+    }
+
+    /// Reads `Transaction.currentEntitlements` and rebuilds the set of purchased identifiers.
+    /// Useful at launch and after `AppStore.sync()` to reflect any restored purchases.
+    func refreshPurchasedIdentifiers() async {
+        var ids: Set<String> = []
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  transaction.revocationDate == nil,
+                  !transaction.isUpgraded
+            else { continue }
+            ids.insert(transaction.productID)
+        }
+        purchasedIdentifiers = ids
     }
 
     func purchase(_ product: Product) async throws -> Transaction? {
@@ -112,47 +118,43 @@ final class Store {
 
         switch result {
         case .success(let verification):
-            let transaction = try checkVerified(verification)
+            let transaction = try verification.payloadValue
             updatePurchasedIdentifiers(transaction)
             await transaction.finish()
             return transaction
         case .userCancelled, .pending:
             return nil
-        default:
+        @unknown default:
             return nil
         }
     }
 
+    /// Restores the user's purchases by syncing with the App Store, then refreshes entitlements.
+    func restorePurchases() async throws {
+        try await AppStore.sync()
+        await refreshPurchasedIdentifiers()
+    }
+
     func isPurchased(_ productIdentifier: String) async throws -> Bool {
-        // Get the most recent transaction receipt for this `productIdentifier`.
-        guard let result = await Transaction.latest(for: productIdentifier) else {
-            // If there is no latest transaction, the product has not been purchased.
-            return false
-        }
-
-        let transaction = try checkVerified(result)
-
         // For subscriptions, a user can upgrade in the middle of their subscription period. The lower service
         // tier will then have the `isUpgraded` flag set and there will be a new transaction for the higher service
         // tier. Ignore the lower service tier transactions which have been upgraded.
+        guard let result = await Transaction.latest(for: productIdentifier) else {
+            return false
+        }
+
+        let transaction = try result.payloadValue
         return transaction.revocationDate == nil && !transaction.isUpgraded
     }
 
     func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
-        switch result {
-        case .unverified:
-            throw StoreError.failedVerification
-        case .verified(let safe):
-            return safe
-        }
+        try result.payloadValue
     }
 
     func updatePurchasedIdentifiers(_ transaction: Transaction) {
         if transaction.revocationDate == nil {
-            // If the App Store has not revoked the transaction, add it to the list of `purchasedIdentifiers`.
             purchasedIdentifiers.insert(transaction.productID)
         } else {
-            // If the App Store has revoked this transaction, remove it from the list of `purchasedIdentifiers`.
             purchasedIdentifiers.remove(transaction.productID)
         }
     }
