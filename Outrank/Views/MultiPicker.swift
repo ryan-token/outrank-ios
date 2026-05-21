@@ -24,11 +24,17 @@ struct MultiPicker: View {
         }
     }
 
+    private var uniqueTeams: [String] {
+        var seen = Set<String>()
+        return favorites.compactMap { seen.insert($0.team).inserted ? $0.team : nil }
+    }
+
     private var summary: String {
-        if favorites.count == 1 {
-            favorites[0].wrappedTeam
+        let teams = uniqueTeams
+        if teams.count == 1 {
+            return teams[0]
         } else {
-            "\(favorites.count) Teams"
+            return "\(teams.count) Teams"
         }
     }
 }

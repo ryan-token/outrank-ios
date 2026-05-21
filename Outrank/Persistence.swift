@@ -7,53 +7,101 @@
 
 import CoreData
 
-struct PersistenceController {
-    static let shared = PersistenceController()
-    
-    @MainActor static var preview: PersistenceController = {
-        let result = PersistenceController(inMemory: true)
-        let viewContext = result.container.viewContext
-        
-        for _ in 0..<10 {
-            let newFavorite = Favorite(context: viewContext)
-            newFavorite.team = "Tulsa"
+nonisolated final class PersistentContainer: NSPersistentCloudKitContainer, @unchecked Sendable {
+    static let shared: PersistentContainer = .make(inMemory: false)
+
+    @MainActor static let preview: PersistentContainer = {
+        let container = PersistentContainer.make(inMemory: true)
+        let viewContext = container.viewContext
+        for team in ["Alabama", "Georgia", "Michigan", "Oklahoma"] {
+            let favorite = Favorite(context: viewContext)
+            favorite.team = team
+            favorite.createdAt = .now
         }
-        
-        do {
-            try viewContext.save()
-        } catch {
-            // Replace this implementation with code to handle the error appropriately.
-            // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-        }
-        return result
+        try? viewContext.saveIfNeeded()
+        return container
     }()
 
-    let container: NSPersistentCloudKitContainer
+    private static func make(inMemory: Bool) -> PersistentContainer {
+        let container = PersistentContainer(name: "TeamRankings")
+        container.configureStoreDescription(inMemory: inMemory)
+        // Register before loading so we catch CloudKit `.setup` events.
+        container.observeCloudKitEvents()
+        container.loadStores()
+        container.configureViewContext()
+        return container
+    }
 
-    init(inMemory: Bool = false) {
-        container = NSPersistentCloudKitContainer(name: "TeamRankings")
-        container.viewContext.automaticallyMergesChangesFromParent = true
-        
-        if inMemory {
-            container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+    override func newBackgroundContext() -> NSManagedObjectContext {
+        let context = super.newBackgroundContext()
+        context.name = "BackgroundContext"
+        context.transactionAuthor = "BackgroundAuthor"
+        context.mergePolicy = NSMergePolicy.mergeByPropertyStoreTrump
+        context.automaticallyMergesChangesFromParent = true
+        return context
+    }
+
+    private func configureStoreDescription(inMemory: Bool) {
+        guard let description = persistentStoreDescriptions.first else {
+            fatalError("Failed to retrieve a persistent store description.")
         }
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
-            if let error = error as NSError? {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
 
-                /*
-                Typical reasons for an error here include:
-                * The parent directory does not exist, cannot be created, or disallows writing.
-                * The persistent store is not accessible, due to permissions or data protection when the device is locked.
-                * The device is out of space.
-                * The store could not be migrated to the current model version.
-                Check the error message to determine what the actual problem was.
-                */
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+        if inMemory {
+            description.url = URL(filePath: "/dev/null")
+            description.cloudKitContainerOptions = nil
+        }
+
+        // Persistent history tracking is required for CloudKit sync and lets
+        // us merge changes from background contexts and remote pushes.
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+    }
+
+    private func loadStores() {
+        loadPersistentStores { _, error in
+            if let error {
+                print("[CoreData] Failed to load persistent store: \(error)")
+                fatalError("Unresolved Core Data error: \(error)")
             }
-        })
+        }
+    }
+
+    private func configureViewContext() {
+        // NSMergeByPropertyStoreTrumpMergePolicy is required so CloudKit-imported
+        // values win over stale in-memory values, and so duplicates merge cleanly
+        // when constraints can't be used (CloudKit forbids @Attribute(.unique)).
+        viewContext.mergePolicy = NSMergePolicy.mergeByPropertyStoreTrump
+        viewContext.automaticallyMergesChangesFromParent = true
+        viewContext.name = "ViewContext"
+        viewContext.transactionAuthor = "MainApp"
+    }
+
+    private func observeCloudKitEvents() {
+        NotificationCenter.default.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification,
+            object: self,
+            queue: .main
+        ) { notification in
+            guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                as? NSPersistentCloudKitContainer.Event else { return }
+
+            if let error = event.error {
+                print("[CoreData] CloudKit \(event.type) failed: \(error)")
+            }
+        }
+    }
+}
+
+extension NSManagedObjectContext {
+    /// Saves only when there are real persistent changes; ignores transient-only edits.
+    nonisolated func saveIfNeeded() throws {
+        guard hasPersistentChanges else { return }
+        try save()
+    }
+
+    nonisolated var hasPersistentChanges: Bool {
+        !insertedObjects.isEmpty
+            || !deletedObjects.isEmpty
+            || updatedObjects.contains { !$0.changedValues().isEmpty }
     }
 }

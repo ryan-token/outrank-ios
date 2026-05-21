@@ -11,16 +11,16 @@ import SwiftUI
 struct OutrankApp: App {
     @State private var tabController = TabController()
     @State private var store = Store()
-    private let persistenceController = PersistenceController.shared
+    private let persistentContainer = PersistentContainer.shared
 
     var body: some Scene {
         WindowGroup {
             MainView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .environment(\.managedObjectContext, persistentContainer.viewContext)
                 .environment(tabController)
                 .environment(store)
                 .task {
-                    Favorite.removeDuplicates(in: persistenceController.container.viewContext)
+                    await Favorite.removeDuplicates(in: persistentContainer)
                 }
         }
     }

@@ -38,7 +38,7 @@ struct TeamPickerView: View {
 
     private var uniqueFavorites: [Favorite] {
         var seen = Set<String>()
-        return favorites.filter { seen.insert($0.wrappedTeam).inserted }
+        return favorites.filter { seen.insert($0.team).inserted }
     }
 
     var body: some View {
@@ -47,10 +47,10 @@ struct TeamPickerView: View {
                 Section("Favorite Teams") {
                     ForEach(uniqueFavorites) { favorite in
                         Button {
-                            chooseTeam(favorite.wrappedTeam)
+                            chooseTeam(favorite.team)
                             dismiss()
                         } label: {
-                            TeamPickerRow(team: favorite.wrappedTeam, isFavorite: true)
+                            TeamPickerRow(team: favorite.team, isFavorite: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -104,12 +104,17 @@ struct TeamPickerView: View {
     private func removeFavorites(at offsets: IndexSet) {
         // Map row offsets to team names, then delete ALL favorites with that
         // team name. This cleans up any duplicate rows in a single swipe.
-        let teamsToRemove = offsets.map { uniqueFavorites[$0].wrappedTeam }
+        let teamsToRemove = offsets.map { uniqueFavorites[$0].team }
         for team in teamsToRemove {
-            for favorite in favorites where favorite.wrappedTeam == team {
+            for favorite in favorites where favorite.team == team {
                 moc.delete(favorite)
             }
         }
-        try? moc.save()
+
+        do {
+            try moc.saveIfNeeded()
+        } catch {
+            print("[TeamPickerView] Failed to remove favorites: \(error)")
+        }
     }
 }

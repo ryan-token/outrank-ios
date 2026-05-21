@@ -15,12 +15,12 @@ struct MultiPickerView: View {
     private let allTeams = AllTeams.teams
 
     private var favoriteTeamNames: Set<String> {
-        Set(favorites.map(\.wrappedTeam))
+        Set(favorites.map(\.team))
     }
 
     private var uniqueFavorites: [Favorite] {
         var seen = Set<String>()
-        return favorites.filter { seen.insert($0.wrappedTeam).inserted }
+        return favorites.filter { seen.insert($0.team).inserted }
     }
 
     var body: some View {
@@ -28,9 +28,9 @@ struct MultiPickerView: View {
             Section("Favorite Teams") {
                 ForEach(uniqueFavorites) { favorite in
                     Button {
-                        toggleSelection(team: favorite.wrappedTeam)
+                        toggleSelection(team: favorite.team)
                     } label: {
-                        FavoriteTeamRow(team: favorite.wrappedTeam, isFavorite: true)
+                        FavoriteTeamRow(team: favorite.team, isFavorite: true)
                     }
                     .buttonStyle(.plain)
                 }
@@ -56,15 +56,21 @@ struct MultiPickerView: View {
     }
 
     private func toggleSelection(team: String) {
-        let matching = favorites.filter { $0.wrappedTeam == team }
+        let matching = favorites.filter { $0.team == team }
         if matching.isEmpty {
             let favorite = Favorite(context: moc)
             favorite.team = team
+            favorite.createdAt = .now
         } else {
             // Delete any/all matching rows. This both un-favorites the team and
             // self-heals any duplicate rows that may have accumulated.
             matching.forEach(moc.delete)
         }
-        try? moc.save()
+
+        do {
+            try moc.saveIfNeeded()
+        } catch {
+            print("[MultiPickerView] Failed to save favorites: \(error)")
+        }
     }
 }

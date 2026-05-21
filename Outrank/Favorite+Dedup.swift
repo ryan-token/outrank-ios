@@ -13,27 +13,34 @@ extension Favorite {
     /// CloudKit forbids `@Attribute(.unique)`, so duplicates can appear when the
     /// same team is favorited on multiple devices (or from rapid taps before the
     /// previous save merges in). This keeps a single row per team.
-    static func removeDuplicates(in context: NSManagedObjectContext) {
-        let request: NSFetchRequest<Favorite> = Favorite.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Favorite.team, ascending: true)]
+    ///
+    /// Runs on a background context so the UI stays responsive; the view context
+    /// picks up the changes automatically via `automaticallyMergesChangesFromParent`.
+    static func removeDuplicates(in container: NSPersistentCloudKitContainer) async {
+        let context = container.newBackgroundContext()
+        await context.perform {
+            let request = Favorite.fetchRequest()
+            request.sortDescriptors = [
+                NSSortDescriptor(keyPath: \Favorite.team, ascending: true),
+                NSSortDescriptor(keyPath: \Favorite.createdAt, ascending: true)
+            ]
 
-        guard let favorites = try? context.fetch(request) else { return }
+            do {
+                let favorites = try context.fetch(request)
+                var seenTeams = Set<String>()
 
-        var seenTeams = Set<String>()
-        var didRemoveAny = false
+                for favorite in favorites {
+                    if seenTeams.contains(favorite.team) {
+                        context.delete(favorite)
+                    } else {
+                        seenTeams.insert(favorite.team)
+                    }
+                }
 
-        for favorite in favorites {
-            let team = favorite.wrappedTeam
-            if seenTeams.contains(team) {
-                context.delete(favorite)
-                didRemoveAny = true
-            } else {
-                seenTeams.insert(team)
+                try context.saveIfNeeded()
+            } catch {
+                print("[FavoriteDedup] Dedup failed: \(error)")
             }
-        }
-
-        if didRemoveAny {
-            try? context.save()
         }
     }
 }
