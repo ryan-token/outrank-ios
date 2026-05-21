@@ -32,9 +32,13 @@ struct ListSubscriptionOptionsView: View {
 
             if purchasingEnabled {
                 Spacer()
-                buyButton
-                    .buttonStyle(SubscribeButtonStyle(isPurchased: isPurchased))
-                    .disabled(isPurchased)
+                SubscribeBuyButton(
+                    product: product,
+                    isPurchased: isPurchased,
+                    buy: buy
+                )
+                .buttonStyle(SubscribeButtonStyle(isPurchased: isPurchased))
+                .disabled(isPurchased)
             }
         }
         .alert(errorTitle, isPresented: $isShowingError) { }
@@ -42,7 +46,25 @@ struct ListSubscriptionOptionsView: View {
         .sensoryFeedback(.error, trigger: errorTrigger)
     }
 
-    private var buyButton: some View {
+    private func buy() async {
+        tapTrigger += 1
+        do {
+            _ = try await store.purchase(product)
+        } catch {
+            errorTrigger += 1
+            errorTitle = "Your purchase could not be completed. Please try again."
+            isShowingError = true
+            logger.error("Failed purchase for \(product.id, privacy: .public): \(error.localizedDescription)")
+        }
+    }
+}
+
+private struct SubscribeBuyButton: View {
+    let product: Product
+    let isPurchased: Bool
+    let buy: () async -> Void
+
+    var body: some View {
         Button {
             Task { await buy() }
         } label: {
@@ -57,18 +79,6 @@ struct ListSubscriptionOptionsView: View {
                     .foregroundStyle(.white)
                     .bold()
             }
-        }
-    }
-
-    private func buy() async {
-        tapTrigger += 1
-        do {
-            _ = try await store.purchase(product)
-        } catch {
-            errorTrigger += 1
-            errorTitle = "Your purchase could not be completed. Please try again."
-            isShowingError = true
-            logger.error("Failed purchase for \(product.id, privacy: .public): \(error.localizedDescription)")
         }
     }
 }

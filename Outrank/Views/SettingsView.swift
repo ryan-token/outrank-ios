@@ -8,31 +8,58 @@
 import SwiftUI
 import WidgetKit
 
-struct SettingsView: View {
-    @Environment(\.openURL) private var openURL
+enum SettingsDetail: Hashable {
+    case favorites
+    case tipJar
+    case subscriptions
+}
 
+struct SettingsView: View {
+    @State private var selectedDetail: SettingsDetail?
+
+    var body: some View {
+        NavigationSplitView {
+            SettingsSidebar(selectedDetail: $selectedDetail)
+        } detail: {
+            SettingsDetailColumn(selectedDetail: selectedDetail)
+        }
+    }
+}
+
+private struct SettingsSidebar: View {
+    @Binding var selectedDetail: SettingsDetail?
+
+    var body: some View {
+        List(selection: $selectedDetail) {
+            PreferencesSection()
+            SupportSection()
+            GeneralSection()
+        }
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.large)
+    }
+}
+
+private struct SettingsDetailColumn: View {
+    let selectedDetail: SettingsDetail?
+
+    var body: some View {
+        switch selectedDetail {
+        case .favorites: MultiPickerView()
+        case .tipJar: TipJarView()
+        case .subscriptions: SubscriptionsView()
+        case .none: WelcomeView(type: .settings)
+        }
+    }
+}
+
+private struct PreferencesSection: View {
     @State private var widgetTeam = UserDefaults(suiteName: AppGroup.groupId.rawValue)?
         .string(forKey: "WidgetTeam") ?? "Air Force"
-    @State private var isShowingAbout = false
-    @State private var isShowingPrivacyDialog = false
 
     private let allTeams = AllTeams.teams
 
     var body: some View {
-        NavigationStack {
-            Form {
-                preferencesSection
-                supportSection
-                generalSection
-            }
-            .sheet(isPresented: $isShowingAbout) {
-                AboutView()
-            }
-            .navigationTitle("Settings")
-        }
-    }
-
-    private var preferencesSection: some View {
         Section("Preferences") {
             MultiPicker()
 
@@ -56,8 +83,12 @@ struct SettingsView: View {
             }
         }
     }
+}
 
-    private var supportSection: some View {
+private struct SupportSection: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
         Section("Support") {
             Button(action: openWriteReview) {
                 SettingsRow(
@@ -69,22 +100,29 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
 
-            NavigationLink {
-                TipJarView()
-            } label: {
+            NavigationLink(value: SettingsDetail.tipJar) {
                 SettingsRow(icon: "centsign.square.fill", iconColor: .orange, title: "Leave a Tip")
             }
             .accessibilityLabel("Leave a Tip")
 
-            NavigationLink {
-                SubscriptionsView()
-            } label: {
+            NavigationLink(value: SettingsDetail.subscriptions) {
                 SettingsRow(icon: "dollarsign.square.fill", iconColor: .green, title: "Subscribe")
             }
         }
     }
 
-    private var generalSection: some View {
+    private func openWriteReview() {
+        guard let url = URL(string: "https://apps.apple.com/us/app/outrank/id1588983785?action=write-review") else { return }
+        openURL(url)
+    }
+}
+
+private struct GeneralSection: View {
+    @Environment(\.openURL) private var openURL
+    @State private var isShowingAbout = false
+    @State private var isShowingPrivacyDialog = false
+
+    var body: some View {
         Section("General") {
             Button(action: sendFeatureRequestEmail) {
                 SettingsRow(
@@ -104,6 +142,9 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("About")
+            .sheet(isPresented: $isShowingAbout) {
+                AboutView()
+            }
 
             Button {
                 isShowingPrivacyDialog = true
@@ -121,11 +162,6 @@ struct SettingsView: View {
                 Button("Privacy Policy", action: openPrivacyPolicy)
             }
         }
-    }
-
-    private func openWriteReview() {
-        guard let url = URL(string: "https://apps.apple.com/us/app/outrank/id1588983785?action=write-review") else { return }
-        openURL(url)
     }
 
     private func sendFeatureRequestEmail() {

@@ -12,9 +12,7 @@ struct MultiPicker: View {
     private var favorites: FetchedResults<Favorite>
 
     var body: some View {
-        NavigationLink {
-            MultiPickerView()
-        } label: {
+        NavigationLink(value: SettingsDetail.favorites) {
             HStack {
                 FavoriteTeamsLabel()
                 Spacer()

@@ -13,72 +13,24 @@ struct RankingsView: View {
 
     @State private var currentTeam = UserDefaults.standard.string(forKey: "CurrentTeam") ?? "Air Force"
     @State private var teamRankings: [String: Int] = [:]
-    @State private var sortMethod: SortMethod = .byStatAlphabetically
     @State private var apiError = false
-
-    @State private var isShowingTeamPicker = false
-    @State private var isShowingInfoSheet = false
-
-    private var sortedRankings: [(key: String, value: Int)] {
-        sortMethod.sort(teamRankings)
-    }
+    @State private var selectedStat: String?
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section("Sorted by \(sortMethod.sectionLabel())") {
-                    ForEach(sortedRankings, id: \.key) { item in
-                        NavigationLink(value: item.key) {
-                            RankingRow(stat: item.key, ranking: item.value)
-                        }
-                    }
-
-                    if apiError {
-                        Text("😕 Error loading rankings for \(currentTeam). Please try again or try a different team.")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .refreshable {
-                await refreshRankings()
-            }
-            .animation(.default, value: teamRankings)
-            .animation(.default, value: sortMethod)
-            .navigationTitle(currentTeam)
-            .navigationDestination(for: String.self) { stat in
-                RankingDetailView(
-                    team: currentTeam,
-                    stat: stat,
-                    ranking: teamRankings[stat] ?? 99999
-                )
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Choose Team") {
-                        isShowingTeamPicker = true
-                    }
-                    .foregroundStyle(.primary)
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Info", systemImage: "info.circle") {
-                        isShowingInfoSheet = true
-                    }
-                    .foregroundStyle(.primary)
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    SortMenu(sortMethod: $sortMethod)
-                        .foregroundStyle(.primary)
-                }
-            }
-            .sheet(isPresented: $isShowingTeamPicker) {
-                TeamPickerView(team: $currentTeam, type: .rankings)
-            }
-            .sheet(isPresented: $isShowingInfoSheet) {
-                InfoView(source: .rankings)
-                    .presentationDetents([.medium])
-            }
+        NavigationSplitView {
+            RankingsSidebar(
+                currentTeam: $currentTeam,
+                teamRankings: teamRankings,
+                apiError: apiError,
+                selectedStat: $selectedStat,
+                refresh: refreshRankings
+            )
+        } detail: {
+            RankingsDetail(
+                team: currentTeam,
+                teamRankings: teamRankings,
+                selectedStat: selectedStat
+            )
         }
         .tint(.primary)
         .task(id: currentTeam) {
@@ -104,6 +56,92 @@ struct RankingsView: View {
             guard !Task.isCancelled else { return }
             print("Request failed with error: \(error)")
             apiError = true
+        }
+    }
+}
+
+private struct RankingsSidebar: View {
+    @Binding var currentTeam: String
+    let teamRankings: [String: Int]
+    let apiError: Bool
+    @Binding var selectedStat: String?
+    let refresh: () async -> Void
+
+    @State private var sortMethod: SortMethod = .byStatAlphabetically
+    @State private var isShowingTeamPicker = false
+    @State private var isShowingInfoSheet = false
+
+    private var sortedRankings: [(key: String, value: Int)] {
+        sortMethod.sort(teamRankings)
+    }
+
+    var body: some View {
+        List(selection: $selectedStat) {
+            Section("Sorted by \(sortMethod.sectionLabel())") {
+                ForEach(sortedRankings, id: \.key) { item in
+                    NavigationLink(value: item.key) {
+                        RankingRow(stat: item.key, ranking: item.value)
+                    }
+                }
+
+                if apiError {
+                    Text("😕 Error loading rankings for \(currentTeam). Please try again or try a different team.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .refreshable {
+            await refresh()
+        }
+        .animation(.default, value: teamRankings)
+        .animation(.default, value: sortMethod)
+        .navigationTitle(currentTeam)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Choose Team") {
+                    isShowingTeamPicker = true
+                }
+                .foregroundStyle(.primary)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Info", systemImage: "info.circle") {
+                    isShowingInfoSheet = true
+                }
+                .foregroundStyle(.primary)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                SortMenu(sortMethod: $sortMethod)
+                    .foregroundStyle(.primary)
+            }
+        }
+        .sheet(isPresented: $isShowingTeamPicker) {
+            TeamPickerView(team: $currentTeam, type: .rankings)
+        }
+        .sheet(isPresented: $isShowingInfoSheet) {
+            InfoView(source: .rankings)
+                .presentationDetents([.medium])
+        }
+    }
+}
+
+private struct RankingsDetail: View {
+    let team: String
+    let teamRankings: [String: Int]
+    let selectedStat: String?
+
+    var body: some View {
+        if let selectedStat {
+            RankingDetailView(
+                team: team,
+                stat: selectedStat,
+                ranking: teamRankings[selectedStat] ?? 99999
+            )
+            .id(selectedStat)
+        } else {
+            WelcomeView(type: .rankings)
         }
     }
 }

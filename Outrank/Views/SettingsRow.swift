@@ -22,12 +22,14 @@ struct SettingsRow: View {
             Text(title)
                 .foregroundStyle(.primary)
 
+            Spacer()
+
             if showsExternalIndicator {
-                Spacer()
                 Image(systemName: "arrow.up.forward")
                     .foregroundStyle(.tertiary)
                     .font(.headline)
             }
         }
+        .contentShape(.rect)
     }
 }
