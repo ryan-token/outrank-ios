@@ -17,7 +17,7 @@ nonisolated enum TeamFetcher {
         print("getting rankings for \(team)")
         let endpoint = "https://tapbejtlgh.execute-api.us-east-2.amazonaws.com/dev/singleTeamQuery?team=\(team)"
         let cleanEndpoint = endpoint.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let finalEndpoint = cleanEndpoint.replacingOccurrences(of: "&", with: "%26")
+        let finalEndpoint = cleanEndpoint.replacing("&", with: "%26")
         print(finalEndpoint)
         
         guard let url = URL(string: finalEndpoint) else {

@@ -36,6 +36,8 @@ struct TeamPickerView: View {
     let type: TeamPickerTypes
     private let allTeams = AllTeams.teams
 
+    @State private var chooseHapticTrigger = 0
+
     private var uniqueFavorites: [Favorite] {
         var seen = Set<String>()
         return favorites.filter { seen.insert($0.team).inserted }
@@ -92,13 +94,14 @@ struct TeamPickerView: View {
                     Button("Done", action: dismiss.callAsFunction).bold()
                 }
             }
+            .sensoryFeedback(.success, trigger: chooseHapticTrigger)
         }
     }
 
     private func chooseTeam(_ team: String) {
         UserDefaults.standard.set(team, forKey: type.userDefaultsKey)
         self.team = team
-        HapticGenerator.playSuccessHaptic()
+        chooseHapticTrigger += 1
     }
 
     private func removeFavorites(at offsets: IndexSet) {

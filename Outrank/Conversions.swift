@@ -18,18 +18,17 @@ nonisolated enum Conversions {
     }
     
     static func getHumanReadableRanking(for ranking: Int) -> String {
-        if ranking == 11 || ranking == 12 || ranking == 13 || ranking == 111 || ranking == 112 || ranking == 113 {
-            return "\(ranking)th"
-        } else if ranking % 10 == 1 {
-            return "\(ranking)st"
-        } else if ranking % 10 == 2 {
-            return "\(ranking)nd"
-        } else if ranking % 10 == 3 {
-            return "\(ranking)rd"
-        } else if ranking == 99999 {
-            return "Unknown"
-        } else {
-            return "\(ranking)th"
+        if ranking == 99999 { return "Unknown" }
+
+        // Teens always take "th" (11th, 12th, 13th, 111th, ...).
+        let lastTwo = ranking % 100
+        if (11...13).contains(lastTwo) { return "\(ranking)th" }
+
+        switch ranking % 10 {
+        case 1: return "\(ranking)st"
+        case 2: return "\(ranking)nd"
+        case 3: return "\(ranking)rd"
+        default: return "\(ranking)th"
         }
     }
     

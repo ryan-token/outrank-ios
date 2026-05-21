@@ -18,6 +18,7 @@ struct ComparisonView: View {
     @State private var isShowingInfoSheet = false
     @State private var apiError = false
     @State private var sortMethod: SortMethod = .byStatAlphabetically
+    @State private var swapHapticTrigger = 0
 
     private var sortedTeamOneRankings: [(key: String, value: Int)] {
         sortMethod.sort(teamOneRankings)
@@ -100,6 +101,7 @@ struct ComparisonView: View {
             .task(id: teamTwo) {
                 await refreshTeamTwo()
             }
+            .sensoryFeedback(.warning, trigger: swapHapticTrigger)
         }
     }
 
@@ -115,7 +117,7 @@ struct ComparisonView: View {
         UserDefaults.standard.set(teamOne, forKey: "TeamOne")
         UserDefaults.standard.set(teamTwo, forKey: "TeamTwo")
 
-        HapticGenerator.playWarningHaptic()
+        swapHapticTrigger += 1
     }
 
     private func refreshRankings() async {

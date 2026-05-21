@@ -21,8 +21,6 @@ struct SortMenu: View {
             Label("Sort", systemImage: "arrow.up.arrow.down")
         }
         .accessibilityLabel("Sort Rankings")
-        .onChange(of: sortMethod) {
-            HapticGenerator.playSuccessHaptic()
-        }
+        .sensoryFeedback(.success, trigger: sortMethod)
     }
 }

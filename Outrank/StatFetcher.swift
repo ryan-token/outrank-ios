@@ -17,7 +17,7 @@ nonisolated enum StatFetcher {
         print("getting rankings for \(stat)")
         let endpoint = "https://tapbejtlgh.execute-api.us-east-2.amazonaws.com/dev/singleStatQuery?stat=\(stat)"
         let cleanEndpoint = endpoint.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let finalEndpoint = cleanEndpoint.replacingOccurrences(of: "&", with: "%26")
+        let finalEndpoint = cleanEndpoint.replacing("&", with: "%26")
         print(finalEndpoint)
         
         guard let url = URL(string: finalEndpoint) else {

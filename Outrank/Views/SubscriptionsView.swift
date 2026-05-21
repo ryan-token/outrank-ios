@@ -15,6 +15,7 @@ struct SubscriptionsView: View {
     @State private var currentSubscription: Product?
     @State private var status: Product.SubscriptionInfo.Status?
     @State private var isShowingManageSubscriptions = false
+    @State private var restoreErrorTrigger = 0
 
     private let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "SubscriptionsView")
 
@@ -49,6 +50,7 @@ struct SubscriptionsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Subscriptions")
         .manageSubscriptionsSheet(isPresented: $isShowingManageSubscriptions)
+        .sensoryFeedback(.error, trigger: restoreErrorTrigger)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu("More", systemImage: "ellipsis.circle") {
@@ -113,7 +115,7 @@ struct SubscriptionsView: View {
         do {
             try await store.restorePurchases()
         } catch {
-            HapticGenerator.playErrorHaptic()
+            restoreErrorTrigger += 1
             logger.error("Restore purchases failed: \(error.localizedDescription)")
         }
     }

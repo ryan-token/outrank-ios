@@ -112,8 +112,6 @@ final class Store {
     }
 
     func purchase(_ product: Product) async throws -> Transaction? {
-        HapticGenerator.playSuccessHaptic()
-
         let result = try await product.purchase()
 
         switch result {

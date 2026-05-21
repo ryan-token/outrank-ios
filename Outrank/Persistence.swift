@@ -77,16 +77,18 @@ nonisolated final class PersistentContainer: NSPersistentCloudKitContainer, @unc
     }
 
     private func observeCloudKitEvents() {
-        NotificationCenter.default.addObserver(
-            forName: NSPersistentCloudKitContainer.eventChangedNotification,
-            object: self,
-            queue: .main
-        ) { notification in
-            guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                as? NSPersistentCloudKitContainer.Event else { return }
-
-            if let error = event.error {
-                print("[CoreData] CloudKit \(event.type) failed: \(error)")
+        let notifications = NotificationCenter.default.notifications(
+            named: NSPersistentCloudKitContainer.eventChangedNotification,
+            object: self
+        )
+        Task { [weak self] in
+            guard self != nil else { return }
+            for await notification in notifications {
+                guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                    as? NSPersistentCloudKitContainer.Event else { continue }
+                if let error = event.error {
+                    print("[CoreData] CloudKit \(event.type) failed: \(error)")
+                }
             }
         }
     }

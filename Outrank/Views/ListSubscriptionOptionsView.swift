@@ -12,14 +12,19 @@ import SwiftUI
 struct ListSubscriptionOptionsView: View {
     @Environment(Store.self) private var store
 
-    @State private var isPurchased = false
     @State private var errorTitle = ""
     @State private var isShowingError = false
+    @State private var tapTrigger = 0
+    @State private var errorTrigger = 0
 
     let product: Product
     var purchasingEnabled: Bool = true
 
     private let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "ListSubscriptionOptionsView")
+
+    private var isPurchased: Bool {
+        store.purchasedIdentifiers.contains(product.id)
+    }
 
     var body: some View {
         HStack {
@@ -33,6 +38,8 @@ struct ListSubscriptionOptionsView: View {
             }
         }
         .alert(errorTitle, isPresented: $isShowingError) { }
+        .sensoryFeedback(.success, trigger: tapTrigger)
+        .sensoryFeedback(.error, trigger: errorTrigger)
     }
 
     private var buyButton: some View {
@@ -51,25 +58,14 @@ struct ListSubscriptionOptionsView: View {
                     .bold()
             }
         }
-        .task {
-            isPurchased = (try? await store.isPurchased(product.id)) ?? false
-        }
-        .onChange(of: store.purchasedIdentifiers) {
-            isPurchased = store.purchasedIdentifiers.contains(product.id)
-        }
     }
 
     private func buy() async {
+        tapTrigger += 1
         do {
-            if try await store.purchase(product) != nil {
-                withAnimation {
-                    isPurchased = true
-                }
-            } else {
-                HapticGenerator.playErrorHaptic()
-            }
+            _ = try await store.purchase(product)
         } catch {
-            HapticGenerator.playErrorHaptic()
+            errorTrigger += 1
             errorTitle = "Your purchase could not be completed. Please try again."
             isShowingError = true
             logger.error("Failed purchase for \(product.id, privacy: .public): \(error.localizedDescription)")
@@ -94,19 +90,9 @@ private struct SubscribePrice: View {
         }
     }
 
-    private var wholeNumberPrice: String {
-        switch product.displayPrice {
-        case "$0.99": "$1"
-        case "$2.99": "$3"
-        case "$4.99": "$5"
-        case "$9.99": "$10"
-        default: "Unknown"
-        }
-    }
-
     var body: some View {
         VStack {
-            Text(wholeNumberPrice)
+            Text(product.wholeCurrencyPrice)
                 .foregroundStyle(.white)
                 .bold()
                 .padding(EdgeInsets(top: -4, leading: 0, bottom: -8, trailing: 0))

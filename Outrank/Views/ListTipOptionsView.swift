@@ -14,6 +14,8 @@ struct ListTipOptionsView: View {
 
     @State private var errorTitle = ""
     @State private var isShowingError = false
+    @State private var tapTrigger = 0
+    @State private var errorTrigger = 0
 
     let product: Product
     var purchasingEnabled: Bool = true
@@ -40,7 +42,7 @@ struct ListTipOptionsView: View {
                 Button {
                     Task { await buy() }
                 } label: {
-                    Text(convertToWholeNumber(product.displayPrice))
+                    Text(product.wholeCurrencyPrice)
                         .foregroundStyle(.white)
                         .bold()
                 }
@@ -49,27 +51,19 @@ struct ListTipOptionsView: View {
             }
         }
         .alert(errorTitle, isPresented: $isShowingError) { }
+        .sensoryFeedback(.success, trigger: tapTrigger)
+        .sensoryFeedback(.error, trigger: errorTrigger)
     }
 
     private func buy() async {
-        HapticGenerator.playSuccessHaptic()
+        tapTrigger += 1
         do {
             _ = try await store.purchase(product)
         } catch {
-            HapticGenerator.playErrorHaptic()
+            errorTrigger += 1
             errorTitle = "Your purchase could not be completed. Please try again."
             isShowingError = true
             logger.error("Failed purchase for \(product.id, privacy: .public): \(error.localizedDescription)")
-        }
-    }
-
-    private func convertToWholeNumber(_ price: String) -> String {
-        switch price {
-        case "$0.99": "$1"
-        case "$2.99": "$3"
-        case "$4.99": "$5"
-        case "$9.99": "$10"
-        default: "Unknown"
         }
     }
 }
