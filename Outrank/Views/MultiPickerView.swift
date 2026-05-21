@@ -6,123 +6,65 @@
 //
 
 import SwiftUI
-import CoreData
 
-struct MultiPickerView<Selectable: Identifiable & Hashable>: View {
+struct MultiPickerView: View {
     @Environment(\.managedObjectContext) private var moc
     @FetchRequest(fetchRequest: Favorite.allFavoritesFetchRequest, animation: .default)
-    var favorites: FetchedResults<Favorite>
-    
-    let allTeams: [Selectable]
-    let teamToString: (Selectable) -> String
+    private var favorites: FetchedResults<Favorite>
 
-    var selectedCount: Int
+    private let allTeams = AllTeams.teams
+
+    private var favoriteTeamNames: Set<String> {
+        Set(favorites.map(\.wrappedTeam))
+    }
+
+    private var uniqueFavorites: [Favorite] {
+        var seen = Set<String>()
+        return favorites.filter { seen.insert($0.wrappedTeam).inserted }
+    }
 
     var body: some View {
         List {
-            Section(header: Text("Favorite Teams")) {
-                ForEach(favorites) { favorite in
-                    Button(action: { toggleSelection(team: favorite.wrappedTeam) }) {
-                        FavoriteTeamsSelectionView(team: favorite.wrappedTeam)
-                            .font(.headline)
+            Section("Favorite Teams") {
+                ForEach(uniqueFavorites) { favorite in
+                    Button {
+                        toggleSelection(team: favorite.wrappedTeam)
+                    } label: {
+                        FavoriteTeamRow(team: favorite.wrappedTeam, isFavorite: true)
                     }
+                    .buttonStyle(.plain)
                 }
-                
+
                 if favorites.isEmpty {
                     Text("No favorites yet ☹️")
-                        .foregroundColor(.gray)
+                        .foregroundStyle(.secondary)
                 }
             }
-            
-            Section(header: Text("All Teams")) {
-                ForEach(allTeams) { team in
-                    let team = teamToString(team)
-                    
-                    Button(action: { toggleSelection(team: team) }) {
-                        FavoriteTeamsSelectionView(team: team)
+
+            Section("All Teams") {
+                ForEach(allTeams, id: \.self) { team in
+                    Button {
+                        toggleSelection(team: team)
+                    } label: {
+                        FavoriteTeamRow(team: team, isFavorite: favoriteTeamNames.contains(team))
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        
-        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private func toggleSelection(team: String) {
-        if favoriteTeamsContains(team) {
-            removeFavorite(team: team)
+        let matching = favorites.filter { $0.wrappedTeam == team }
+        if matching.isEmpty {
+            let favorite = Favorite(context: moc)
+            favorite.team = team
         } else {
-            addFavorite(team: team)
+            // Delete any/all matching rows. This both un-favorites the team and
+            // self-heals any duplicate rows that may have accumulated.
+            matching.forEach(moc.delete)
         }
-    }
-    
-    func favoriteTeamsContains(_ team: String) -> Bool {
-        let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Favorite")
-        let predicate = NSPredicate(format: "team == %@", team)
-        request.predicate = predicate
-        request.fetchLimit = 1
-
-        do{
-            let count = try moc.count(for: request)
-            if(count == 0){
-                return false
-            }
-            else{
-                return true
-            }
-          }
-        catch let error as NSError {
-            print("Could not fetch \(error), \(error.userInfo)")
-        }
-        
-        return false
-    }
-    
-    func addFavorite(team: String) {
-        let favorite = Favorite(context: moc)
-        favorite.team = team
-        
         try? moc.save()
-    }
-    
-    func removeFavorite(team: String) {
-        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Favorite")
-        
-        let result = try? moc.fetch(fetchRequest)
-        let favorites = result as! [Favorite]
-        
-        for favorite in favorites {
-            if favorite.wrappedTeam == team {
-                moc.delete(favorite)
-            }
-        }
-        
-        do {
-            try moc.save()
-        } catch let error as NSError  {
-            print("Could not save \(error), \(error.userInfo)")
-        } catch {
-
-        }
-    }
-}
-
-struct MultiPickerView_Previews: PreviewProvider {
-    struct IdentifiableString: Identifiable, Hashable {
-        let string: String
-        var id: String { string }
-    }
-
-    @State static var selected: Set<IdentifiableString> = Set(["A", "C"].map { IdentifiableString(string: $0) })
-
-    static var previews: some View {
-        NavigationView {
-            MultiPickerView(
-                allTeams: ["A", "B", "C", "D"].map { IdentifiableString(string: $0) },
-                teamToString: { $0.string },
-                selectedCount: 4
-            )
-        }
     }
 }

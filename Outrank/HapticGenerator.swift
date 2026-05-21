@@ -5,23 +5,18 @@
 //  Created by Ryan Token on 10/18/21.
 //
 
-import Foundation
 import SwiftUI
 
-@MainActor
-class HapticGenerator {
+enum HapticGenerator {
     static func playSuccessHaptic() {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
-    
+
     static func playWarningHaptic() {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.warning)
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
-    
+
     static func playErrorHaptic() {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.error)
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
     }
 }

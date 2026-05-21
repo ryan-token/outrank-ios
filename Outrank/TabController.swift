@@ -7,17 +7,17 @@
 
 import SwiftUI
 
-enum Tab {
+enum AppTab: Hashable {
     case rankings
     case compare
     case settings
 }
 
 @Observable
-class TabController {
-    var activeTab = Tab.rankings
+final class TabController {
+    var activeTab: AppTab = .rankings
 
-    func open(_ tab: Tab) {
+    func open(_ tab: AppTab) {
         activeTab = tab
     }
 }

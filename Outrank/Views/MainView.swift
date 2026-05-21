@@ -1,5 +1,5 @@
 //
-//  TabView.swift
+//  MainView.swift
 //  Outrank
 //
 //  Created by Ryan Token on 10/2/21.
@@ -8,34 +8,29 @@
 import SwiftUI
 
 struct MainView: View {
-    @State private var tabController = TabController()
-    
+    @Environment(TabController.self) private var tabController
+
     var body: some View {
+        @Bindable var tabController = tabController
+
         TabView(selection: $tabController.activeTab) {
-            RankingsView()
-                .tag(Tab.rankings)
-                .tabItem {
-                    Label("Rankings", systemImage: "list.bullet.rectangle.portrait")
-                }
+            Tab("Rankings", systemImage: "list.bullet.rectangle.portrait", value: AppTab.rankings) {
+                RankingsView()
+            }
 
-            ComparisonView()
-                .tag(Tab.compare)
-                .tabItem {
-                    Label("Compare", systemImage: "eyeglasses")
-                }
+            Tab("Compare", systemImage: "eyeglasses", value: AppTab.compare) {
+                ComparisonView()
+            }
 
-            SettingsView()
-                .tag(Tab.settings)
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
+            Tab("Settings", systemImage: "gear", value: AppTab.settings) {
+                SettingsView()
+            }
         }
-        .environment(tabController)
     }
 }
 
-struct MainView_Previews: PreviewProvider {
-    static var previews: some View {
-        MainView()
-    }
+#Preview {
+    MainView()
+        .environment(TabController())
+        .environment(Store())
 }

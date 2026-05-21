@@ -7,7 +7,7 @@
 
 import Foundation
 
-class Conversions {
+nonisolated enum Conversions {
     static func getHumanReadableStat(for stat: String) -> String {
         if stat != "DefensiveTDs" {
             let cleanStat = stat.camelCaseToWords()

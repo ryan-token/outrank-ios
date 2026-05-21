@@ -8,110 +8,101 @@
 import SwiftUI
 
 struct TeamPickerView: View {
+    enum TeamPickerTypes: String, Identifiable {
+        case rankings
+        case comparisonTeamOne
+        case comparisonTeamTwo
+
+        var id: String { rawValue }
+
+        var userDefaultsKey: String {
+            switch self {
+            case .rankings: "CurrentTeam"
+            case .comparisonTeamOne: "TeamOne"
+            case .comparisonTeamTwo: "TeamTwo"
+            }
+        }
+    }
+
     @Environment(\.managedObjectContext) private var moc
     @Environment(\.dismiss) private var dismiss
     @Environment(TabController.self) private var tabController
 
     @FetchRequest(fetchRequest: Favorite.allFavoritesFetchRequest, animation: .default)
-    var favorites: FetchedResults<Favorite>
-    
+    private var favorites: FetchedResults<Favorite>
+
     @Binding var team: String
-    @Binding var teamRankings: [String:Int]
-    
+    @Binding var teamRankings: [String: Int]
+
     let type: TeamPickerTypes
-    let allTeams = AllTeams().getTeams()
-    
-    enum TeamPickerTypes {
-        case rankings
-        case comparisonTeamOne
-        case comparisonTeamTwo
+    private let allTeams = AllTeams.teams
+
+    private var uniqueFavorites: [Favorite] {
+        var seen = Set<String>()
+        return favorites.filter { seen.insert($0.wrappedTeam).inserted }
     }
-    
-    private var userDefaultsKey: String {
-        switch type {
-        case TeamPickerTypes.rankings:
-            return "CurrentTeam"
-        case TeamPickerTypes.comparisonTeamOne:
-            return "TeamOne"
-        case TeamPickerTypes.comparisonTeamTwo:
-            return "TeamTwo"
-        }
-    }
-    
+
     var body: some View {
-        NavigationView {
-            VStack {
-                List {
-                    Section(header: Text("Favorite Teams")) {
-                        ForEach(favorites) { favorite in
-                            Button(action: {
-                                chooseTeam(team: favorite.wrappedTeam)
-                                dismiss()
-                            }) {
-                                Text(favorite.wrappedTeam)
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                            }
+        NavigationStack {
+            List {
+                Section("Favorite Teams") {
+                    ForEach(uniqueFavorites) { favorite in
+                        Button {
+                            chooseTeam(favorite.wrappedTeam)
+                            dismiss()
+                        } label: {
+                            TeamPickerRow(team: favorite.wrappedTeam, isFavorite: true)
                         }
-                        .onDelete(perform: removeFromFavorites)
-                        
-                        if favorites.isEmpty {
-                            Button(action: {
-                                dismiss()
-                                tabController.open(.settings)
-                            }) {
-                                HStack(spacing: 6) {
-                                    Text("Choose favorites in")
-                                    HStack(spacing: 1) {
-                                        Image(systemName: "gear")
-                                        Text("Settings")
-                                    }
-                                }
-                                .foregroundColor(.gray)
-                            }
-                        }
+                        .buttonStyle(.plain)
                     }
-                    
-                    Section(header: Text("All Teams")) {
-                        ForEach(allTeams, id: \.self) { team in
-                            HStack {
-                                Button(action: {
-                                    chooseTeam(team: team)
-                                    dismiss()
-                                }) {
-                                    Text(team)
-                                        .font(.body)
-                                        .foregroundColor(.primary)
-                                }
+                    .onDelete(perform: removeFavorites)
+
+                    if favorites.isEmpty {
+                        Button {
+                            dismiss()
+                            tabController.open(.settings)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text("Choose favorites in")
+                                Label("Settings", systemImage: "gear")
+                                    .labelStyle(.titleAndIcon)
+                                Spacer()
                             }
+                            .foregroundStyle(.secondary)
+                            .contentShape(.rect)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
-                
-                .navigationTitle("Choose Team")
-                
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
+
+                Section("All Teams") {
+                    ForEach(allTeams, id: \.self) { team in
+                        Button {
+                            chooseTeam(team)
                             dismiss()
-                        }) {
-                            Text("Done")
-                                .bold()
+                        } label: {
+                            TeamPickerRow(team: team, isFavorite: false)
                         }
+                        .buttonStyle(.plain)
                     }
+                }
+            }
+            .navigationTitle("Choose Team")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", action: dismiss.callAsFunction).bold()
                 }
             }
         }
     }
-    
-    func chooseTeam(team: String) {
+
+    private func chooseTeam(_ team: String) {
         Task {
-            print("fetching new data")
             do {
-                let fetchedRankings = try await TeamFetcher.getTeamRankingsFor(team: team)
-                teamRankings = try fetchedRankings.allProperties()
-                
-                UserDefaults.standard.set(team, forKey: userDefaultsKey)
+                let fetched = try await TeamFetcher.getTeamRankingsFor(team: team)
+                teamRankings = try fetched.allProperties()
+
+                UserDefaults.standard.set(team, forKey: type.userDefaultsKey)
                 self.team = team
                 HapticGenerator.playSuccessHaptic()
             } catch {
@@ -119,17 +110,16 @@ struct TeamPickerView: View {
             }
         }
     }
-    
-    func removeFromFavorites(at offsets: IndexSet) {
-        for offset in offsets {
-            // find this book in our fetch request'
-            let favorite = favorites[offset]
-            
-            // delete it from the context
-            moc.delete(favorite)
+
+    private func removeFavorites(at offsets: IndexSet) {
+        // Map row offsets to team names, then delete ALL favorites with that
+        // team name. This cleans up any duplicate rows in a single swipe.
+        let teamsToRemove = offsets.map { uniqueFavorites[$0].wrappedTeam }
+        for team in teamsToRemove {
+            for favorite in favorites where favorite.wrappedTeam == team {
+                moc.delete(favorite)
+            }
         }
-        
-        // save the new context
         try? moc.save()
     }
 }

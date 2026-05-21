@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Team: Codable, Loopable {
+nonisolated struct Team: Codable, Loopable {
     var BlockedKicks: Int
     var FewestPenaltiesPerGame: Int
     var FourthDownConversionPctDefense: Int

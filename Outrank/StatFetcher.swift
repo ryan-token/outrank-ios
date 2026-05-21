@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct StatFetcher {
+nonisolated enum StatFetcher {
     enum StatFetcherError: Error {
         case invalidURL
         case missingData

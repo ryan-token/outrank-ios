@@ -10,145 +10,113 @@ import StoreKit
 
 struct ListSubscriptionOptionsView: View {
     @Environment(Store.self) private var store
-    @State var isPurchased: Bool = false
-    @State var errorTitle = ""
-    @State var isShowingError: Bool = false
+
+    @State private var isPurchased = false
+    @State private var errorTitle = ""
+    @State private var isShowingError = false
 
     let product: Product
-    let purchasingEnabled: Bool
-
-    init(product: Product, purchasingEnabled: Bool = true) {
-        self.product = product
-        self.purchasingEnabled = purchasingEnabled
-    }
+    var purchasingEnabled: Bool = true
 
     var body: some View {
         HStack {
+            ProductDetail(product: product)
+
             if purchasingEnabled {
-                productDetail
                 Spacer()
                 buyButton
                     .buttonStyle(SubscribeButtonStyle(isPurchased: isPurchased))
                     .disabled(isPurchased)
-            } else {
-                productDetail
             }
         }
-        .alert(isPresented: $isShowingError, content: {
-            Alert(title: Text(errorTitle), message: nil, dismissButton: .default(Text("Okay")))
-        })
+        .alert(errorTitle, isPresented: $isShowingError) { }
     }
 
-    @ViewBuilder
-    var productDetail: some View {
-        if product.type == .autoRenewable {
-            VStack(alignment: .leading) {
-                Text(product.displayName)
-                    .bold()
-                Text(product.description)
-            }
-            .accessibilityLabel(product.description)
-        } else {
-            Text(product.description)
-                .frame(alignment: .leading)
-        }
-    }
-
-    func subscribeButton(_ subscription: Product.SubscriptionInfo) -> some View {
-        let unit: String
-        
-        let plural = 1 < subscription.subscriptionPeriod.value
-            switch subscription.subscriptionPeriod.unit {
-        case .day:
-            unit = plural ? "\(subscription.subscriptionPeriod.value) days" : "day"
-        case .week:
-            unit = plural ? "\(subscription.subscriptionPeriod.value) weeks" : "week"
-        case .month:
-            unit = plural ? "\(subscription.subscriptionPeriod.value) months" : "month"
-        case .year:
-            unit = plural ? "\(subscription.subscriptionPeriod.value) years" : "year"
-        @unknown default:
-            unit = "period"
-        }
-
-        return VStack {
-            Text(convertToWholeNumber(product.displayPrice))
-                .foregroundColor(.white)
-                .bold()
-                .padding(EdgeInsets(top: -4.0, leading: 0.0, bottom: -8.0, trailing: 0.0))
-            Divider()
-                .background(Color.white)
-            Text(unit)
-                .foregroundColor(.white)
-                .font(.system(size: 12))
-                .padding(EdgeInsets(top: -8.0, leading: 0.0, bottom: -4.0, trailing: 0.0))
-        }
-        .accessibilityLabel("\(product.displayPrice) per year")
-    }
-
-    var buyButton: some View {
-        Button(action: {
-            Task {
-                await buy()
-            }
-        }) {
+    private var buyButton: some View {
+        Button {
+            Task { await buy() }
+        } label: {
             if isPurchased {
-                Text(Image(systemName: "checkmark"))
+                Image(systemName: "checkmark")
                     .bold()
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
+            } else if let subscription = product.subscription {
+                SubscribePrice(product: product, subscription: subscription)
             } else {
-                if let subscription = product.subscription {
-                    subscribeButton(subscription)
-                } else {
-                    Text("product.displayPrice")
-                        .foregroundColor(.white)
-                        .bold()
-                }
+                Text(product.displayPrice)
+                    .foregroundStyle(.white)
+                    .bold()
             }
         }
         .task {
             isPurchased = (try? await store.isPurchased(product.id)) ?? false
         }
         .onChange(of: store.purchasedIdentifiers) {
-            Task {
-                isPurchased = store.purchasedIdentifiers.contains(product.id)
-            }
+            isPurchased = store.purchasedIdentifiers.contains(product.id)
         }
     }
 
-    func buy() async {
+    private func buy() async {
         do {
             if try await store.purchase(product) != nil {
-                print("success")
                 withAnimation {
                     isPurchased = true
                 }
             } else {
                 HapticGenerator.playErrorHaptic()
-                print("huh?")
             }
         } catch StoreError.failedVerification {
             HapticGenerator.playErrorHaptic()
             errorTitle = "Your purchase could not be verified by the App Store."
-            print("failed verification")
+            isShowingError = true
         } catch {
             HapticGenerator.playErrorHaptic()
             print("Failed purchase for \(product.id): \(error)")
         }
     }
-    
-    func convertToWholeNumber(_ price: String) -> String {
-        switch price {
-        case "$0.99":
-            return "$1"
-        case "$2.99":
-            return "$3"
-        case "$4.99":
-            return "$5"
-        case "$9.99":
-            return "$10"
-        default:
-            return "Unknown"
+}
+
+private struct SubscribePrice: View {
+    let product: Product
+    let subscription: Product.SubscriptionInfo
+
+    private var unitLabel: String {
+        let value = subscription.subscriptionPeriod.value
+        let plural = value > 1
+
+        switch subscription.subscriptionPeriod.unit {
+        case .day: return plural ? "\(value) days" : "day"
+        case .week: return plural ? "\(value) weeks" : "week"
+        case .month: return plural ? "\(value) months" : "month"
+        case .year: return plural ? "\(value) years" : "year"
+        @unknown default: return "period"
         }
+    }
+
+    private var wholeNumberPrice: String {
+        switch product.displayPrice {
+        case "$0.99": "$1"
+        case "$2.99": "$3"
+        case "$4.99": "$5"
+        case "$9.99": "$10"
+        default: "Unknown"
+        }
+    }
+
+    var body: some View {
+        VStack {
+            Text(wholeNumberPrice)
+                .foregroundStyle(.white)
+                .bold()
+                .padding(EdgeInsets(top: -4, leading: 0, bottom: -8, trailing: 0))
+
+            Divider().background(Color.white)
+
+            Text(unitLabel)
+                .foregroundStyle(.white)
+                .font(.system(size: 12))
+                .padding(EdgeInsets(top: -8, leading: 0, bottom: -4, trailing: 0))
+        }
+        .accessibilityLabel("\(product.displayPrice) per year")
     }
 }

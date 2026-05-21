@@ -10,19 +10,15 @@ import StoreKit
 
 struct ListTipOptionsView: View {
     @Environment(Store.self) private var store
-    @State var errorTitle = ""
-    @State var isShowingError: Bool = false
+
+    @State private var errorTitle = ""
+    @State private var isShowingError = false
 
     let product: Product
-    let purchasingEnabled: Bool
+    var purchasingEnabled: Bool = true
 
-    var emoji: String {
+    private var emoji: String {
         store.emoji(for: product.id)
-    }
-
-    init(product: Product, purchasingEnabled: Bool = true) {
-        self.product = product
-        self.purchasingEnabled = purchasingEnabled
     }
 
     var body: some View {
@@ -30,62 +26,32 @@ struct ListTipOptionsView: View {
             Text(emoji)
                 .font(.system(size: 40))
                 .frame(width: 50, height: 50)
-                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .clipShape(.rect(cornerRadius: 15, style: .continuous))
                 .padding(.trailing, 20)
-                .accessibility(hidden: true)
+                .accessibilityHidden(true)
+
+            ProductDetail(product: product)
+
             if purchasingEnabled {
-                productDetail
                 Spacer()
-                buyButton
-                    .buttonStyle(BuyButtonStyle())
-            } else {
-                productDetail
+                Button {
+                    Task { await buy() }
+                } label: {
+                    Text(convertToWholeNumber(product.displayPrice))
+                        .foregroundStyle(.white)
+                        .bold()
+                }
+                .buttonStyle(BuyButtonStyle())
+                .accessibilityLabel("Tip \(product.displayPrice)")
             }
         }
-        
-        .alert(isPresented: $isShowingError, content: {
-            Alert(title: Text(errorTitle), message: nil, dismissButton: .default(Text("Okay")))
-        })
+        .alert(errorTitle, isPresented: $isShowingError) { }
     }
 
-    @ViewBuilder
-    var productDetail: some View {
-        if product.type == .autoRenewable {
-            VStack(alignment: .leading) {
-                Text(product.displayName)
-                    .bold()
-                Text(product.description)
-            }
-        } else {
-            Text(product.description)
-                .frame(alignment: .leading)
-        }
-    }
-
-    var buyButton: some View {
-        Button(action: {
-            Task {
-                await buy()
-            }
-        }) {
-            Text(convertToWholeNumber(product.displayPrice))
-                .foregroundColor(.white)
-                .bold()
-        }
-        .accessibilityLabel("Tip \(product.displayPrice)")
-        .onAppear {
-            Task {
-                try? await store.isPurchased(product.id)
-            }
-        }
-    }
-
-    func buy() async {
+    private func buy() async {
+        HapticGenerator.playSuccessHaptic()
         do {
-            HapticGenerator.playSuccessHaptic()
-            if try await store.purchase(product) != nil {
-                print("Purchase was successful")
-            }
+            _ = try await store.purchase(product)
         } catch StoreError.failedVerification {
             HapticGenerator.playErrorHaptic()
             errorTitle = "Your purchase could not be verified by the App Store."
@@ -95,23 +61,14 @@ struct ListTipOptionsView: View {
             print("Failed purchase for \(product.id): \(error)")
         }
     }
-    
-    func convertToWholeNumber(_ price: String) -> String {
+
+    private func convertToWholeNumber(_ price: String) -> String {
         switch price {
-        case "$0.99":
-            return "$1"
-        case "$2.99":
-            return "$3"
-        case "$4.99":
-            return "$5"
-        case "$9.99":
-            return "$10"
-        default:
-            return "Unknown"
+        case "$0.99": "$1"
+        case "$2.99": "$3"
+        case "$4.99": "$5"
+        case "$9.99": "$10"
+        default: "Unknown"
         }
     }
-}
-
-extension LosslessStringConvertible {
-    var string: String { .init(self) }
 }

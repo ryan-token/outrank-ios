@@ -7,120 +7,75 @@
 
 import SwiftUI
 
-enum Source {
+enum InfoSource {
     case rankings
     case compare
+
+    var greenDescription: LocalizedStringResource {
+        switch self {
+        case .rankings: "means the team ranks in the *top half* of the country."
+        case .compare: "means the team ranks *better* on a given stat than the team you're comparing them with."
+        }
+    }
+
+    var redDescription: LocalizedStringResource {
+        switch self {
+        case .rankings: "means the team ranks in the *bottom half*."
+        case .compare: "means the team ranks *worse* than the other team."
+        }
+    }
+
+    var heading: LocalizedStringResource {
+        switch self {
+        case .rankings: "Rankings page colors"
+        case .compare: "Compare page colors"
+        }
+    }
+
+    var otherPageNote: LocalizedStringResource {
+        switch self {
+        case .rankings: "The colors work differently on the **Compare** page."
+        case .compare: "The colors work differently on the **Rankings** page."
+        }
+    }
 }
 
 struct InfoView: View {
     @Environment(\.dismiss) private var dismiss
-    let source: Source
-    
+
+    let source: InfoSource
+
     var body: some View {
-        NavigationView {
-            switch source {
-            case .rankings:
-                VStack(alignment: .leading) {
-                    Text("Rankings page colors")
-                        .font(.headline)
-                        .padding(.horizontal)
-                    
-                    Group {
-                        Text("On this page, a ")
-                        +
-                        Text("green ranking ")
-                            .foregroundColor(.green)
-                            .font(.headline)
-                        +
-                        Text("means the team ranks in the *top half* of the country. A ")
-                        +
-                        Text("red ranking ")
-                            .foregroundColor(.red)
-                            .font(.headline)
-                        +
-                        Text("means the team ranks in the *bottom half*.")
-                    }
-                    .foregroundColor(.gray)
-                    .padding(15)
-                    
-                    Group {
-                        Text("The colors work differently on the **Compare** page.")
-                    }
-                    .foregroundColor(.gray)
+        NavigationStack {
+            VStack(alignment: .leading) {
+                Text(source.heading)
+                    .font(.headline)
+                    .padding(.horizontal)
+
+                let green = Text("green ranking ").foregroundStyle(.green).font(.headline)
+                let red = Text("red ranking ").foregroundStyle(.red).font(.headline)
+
+                Text("On this page, a \(green) \(source.greenDescription) A \(red) \(source.redDescription)")
+                    .foregroundStyle(.secondary)
                     .padding(15)
 
-                    
-                    Spacer()
-                }
-                .padding(.top)
-                
-                .navigationTitle("Info")
-                
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            dismiss()
-                        }) {
-                            Text("Done")
-                                .bold()
-                        }
-                    }
-                }
-                
-            case .compare:
-                VStack(alignment: .leading) {
-                    Text("Compare page colors")
-                        .font(.headline)
-                        .padding(.horizontal)
-                    
-                    Group {
-                        Text("On this page, a ")
-                        +
-                        Text("green ranking ")
-                            .foregroundColor(.green)
-                            .font(.headline)
-                        +
-                        Text("means the team ranks *better* on a given stat than the team you're comparing them with. A ")
-                        +
-                        Text("red ranking ")
-                            .foregroundColor(.red)
-                            .font(.headline)
-                        +
-                        Text("means the team ranks *worse* than the other team.")
-                    }
-                    .foregroundColor(.gray)
-                    .padding(15)
-                    
-                    Group {
-                        Text("The colors work differently on the **Rankings** page.")
-                    }
-                    .foregroundColor(.gray)
+                Text(source.otherPageNote)
+                    .foregroundStyle(.secondary)
                     .padding(15)
 
-                    
-                    Spacer()
-                }
-                .padding(.top)
-                
-                .navigationTitle("Info")
-                
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            dismiss()
-                        }) {
-                            Text("Done")
-                                .bold()
-                        }
-                    }
+                Spacer()
+            }
+            .padding(.top)
+            .navigationTitle("Info")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", action: dismiss.callAsFunction).bold()
                 }
             }
         }
     }
 }
 
-struct InfoView_Previews: PreviewProvider {
-    static var previews: some View {
-        InfoView(source: Source.rankings)
-    }
+#Preview {
+    InfoView(source: .rankings)
 }

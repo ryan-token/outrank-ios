@@ -7,22 +7,14 @@
 
 import Foundation
 
-class Utils {
-    static func getSimpleAverageFor(_ teamRankings: [String:Int]) -> String {
-        if teamRankings.isEmpty {
-            return ""
-        } else {
-            var rankings = Array(teamRankings.values)
-            rankings.removeAll { number in
-                return number == 99999
-            }
-            let sumRankings = rankings.reduce(0, +)
-            if sumRankings != 0 {
-                let averageRankings = sumRankings / rankings.count
-                return String(averageRankings)
-            } else {
-                return "0"
-            }
-        }
+nonisolated enum Utils {
+    static func getSimpleAverageFor(_ teamRankings: [String: Int]) -> String {
+        let rankings = teamRankings.values.filter { $0 != 99999 }
+        guard !rankings.isEmpty else { return "" }
+
+        let sum = rankings.reduce(0, +)
+        guard sum != 0 else { return "0" }
+
+        return String(sum / rankings.count)
     }
 }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct TeamFetcher {
+nonisolated enum TeamFetcher {
     enum TeamFetcherError: Error {
         case invalidURL
         case missingData

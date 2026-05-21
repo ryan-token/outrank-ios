@@ -7,59 +7,40 @@
 
 import SwiftUI
 
-struct MultiPicker<LabelView: View, Selectable: Identifiable & Hashable>: View {
+struct MultiPicker: View {
     @FetchRequest(fetchRequest: Favorite.allFavoritesFetchRequest, animation: .default)
-    var favorites: FetchedResults<Favorite>
-    
-    let label: LabelView
-    let allTeams: [Selectable]
-    let teamToString: (Selectable) -> String
-
-    var selectedCount: Int
+    private var favorites: FetchedResults<Favorite>
 
     var body: some View {
-        NavigationLink(destination: MultiPickerView()) {
+        NavigationLink {
+            MultiPickerView()
+        } label: {
             HStack {
-                label
+                FavoriteTeamsLabel()
                 Spacer()
-                if favorites.count == 1 {
-                    Text(favorites[0].wrappedTeam)
-                        .foregroundColor(.gray)
-                } else {
-                    Text("\(selectedCount) Teams")
-                        .foregroundColor(.gray)
-                }
+                Text(summary)
+                    .foregroundStyle(.secondary)
             }
         }
     }
 
-    private func MultiPickerView() -> some View {
-        Outrank.MultiPickerView(
-            allTeams: allTeams,
-            teamToString: teamToString,
-            selectedCount: selectedCount
-        )
+    private var summary: String {
+        if favorites.count == 1 {
+            favorites[0].wrappedTeam
+        } else {
+            "\(favorites.count) Teams"
+        }
     }
 }
 
-
-struct MultiPicker_Previews: PreviewProvider {
-    struct IdentifiableString: Identifiable, Hashable {
-        let string: String
-        var id: String { string }
-    }
-
-    static var previews: some View {
-        NavigationView {
-            Form {
-                MultiPicker<Text, IdentifiableString>(
-                    label: Text("Favorite Teams"),
-                    allTeams: ["A", "B", "C", "D"].map { IdentifiableString(string: $0) },
-                    teamToString: { $0.string },
-                    selectedCount: 4
-                )
-            }
+struct FavoriteTeamsLabel: View {
+    var body: some View {
+        Label {
+            Text("Favorites")
+        } icon: {
+            Image(systemName: "star.square.fill")
+                .font(.title)
+                .foregroundStyle(.yellow)
         }
-        .accentColor(.primary)
     }
 }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Stat: Codable, Loopable {
+nonisolated struct Stat: Codable, Loopable {
     var AppState: Int
     var WestVirginia: Int
     var MichiganSt: Int

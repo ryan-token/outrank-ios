@@ -7,208 +7,147 @@
 
 import SwiftUI
 import WidgetKit
-import StoreKit
 
 struct SettingsView: View {
-    @FetchRequest(entity: Favorite.entity(), sortDescriptors: [], animation: .default) var favorites: FetchedResults<Favorite>
-    
-    @State private var store: Store = Store()
+    @Environment(\.openURL) private var openURL
 
-    @State private var widgetTeam = UserDefaults(suiteName: "group.com.ryantoken.teamrankings")?.string(forKey: "WidgetTeam") ?? "Air Force"
-    @State private var isShowingAboutScreen = false
-    @State private var isShowingPrivacyActionSheet = false
-    
-    let allTeams = AllTeams().getTeams()
-    
-    var selectedCount: Int {
-        return favorites.count
-    }
-    
+    @State private var widgetTeam = UserDefaults(suiteName: AppGroup.groupId.rawValue)?
+        .string(forKey: "WidgetTeam") ?? "Air Force"
+    @State private var isShowingAbout = false
+    @State private var isShowingPrivacyDialog = false
+
+    private let allTeams = AllTeams.teams
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
-                Section(header: Text("Preferences")) {
-                    MultiPicker(
-                        label: FavoriteTeamsLabel(),
-                        allTeams: allTeams,
-                        teamToString: { $0 },
-                        selectedCount: selectedCount
-                    )
-                    
-                    Picker(selection: $widgetTeam, label:
-                        HStack {
-                            Image(systemName: "square.text.square.fill")
-                            .font(.title)
-                            .foregroundColor(.purple)
-                        
-                            Text("Widget")
-                    }) {
-                        ForEach(allTeams, id: \.self) { team in
-                            Text(team)
-                        }
-                    }
-                    .onChange(of: widgetTeam) {
-                          // Save widget team to App Group userdefaults
-                        UserDefaults(suiteName: "group.com.ryantoken.teamrankings")?.set(widgetTeam, forKey: "WidgetTeam")
-                        WidgetCenter.shared.reloadAllTimelines()
-                        
-                        print("shared user defaults for widget team is now \(widgetTeam)")
-                   }
-                }
-                
-                Section(header: Text("Support")) {
-                    Button(action: {
-                        requestReviewManually()
-                    }) {
-                        HStack {
-                            Image(systemName: "heart.square.fill")
-                                .font(.title)
-                                .foregroundColor(.red)
-                            Text("Rate")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Image(systemName: "arrow.up.forward")
-                                .foregroundColor(.lightGray)
-                                .font(.headline)
-                        }
-                    }
-                    
-                    NavigationLink(destination: TipJarView()) {
-                        HStack {
-                            Image(systemName: "centsign.square.fill")
-                                .font(.title)
-                                .foregroundColor(.orange)
-                            Text("Leave a Tip")
-                        }
-                    }
-                    .accessibilityLabel("Leave a Tip")
-                    
-                    NavigationLink(destination: SubscriptionsView()) {
-                        HStack {
-                            Image(systemName: "dollarsign.square.fill")
-                                .font(.title)
-                                .foregroundColor(.green)
-                            Text("Subscribe")
-                        }
-                    }
-                }
-                
-                Section(header: Text("General")) {
-                    Button(action: {
-                        sendFeatureRequestEmail()
-                    }) {
-                        HStack {
-                            Image(systemName: "bolt.square.fill")
-                                .font(.title)
-                                .foregroundColor(.mint)
-                            Text("Feature Request")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Image(systemName: "arrow.up.forward")
-                                .foregroundColor(.lightGray)
-                                .font(.headline)
-                        }
-                    }
-                    .accessibilityLabel("Send an email with a feature request")
-                    
-                    Button(action: {
-                        isShowingAboutScreen.toggle()
-                    }) {
-                        HStack {
-                            Image(systemName: "person.crop.square.fill")
-                                .font(.title)
-                                .foregroundColor(.blue)
-                            Text("About")
-                                .foregroundColor(.primary)
-                        }
-                    }
-                    .accessibilityLabel("About")
-                    
-                    Button(action: {
-                        isShowingPrivacyActionSheet.toggle()
-                    }) {
-                        HStack {
-                            Image(systemName: "lock.square.fill")
-                                .font(.title)
-                                .foregroundColor(.gray)
-                            Text("Terms & Privacy Policy")
-                                .foregroundColor(.primary)
-                        }
-                    }
-                    .accessibilityLabel("Terms of Use and Privacy Policy")
-                    
-                    .actionSheet(isPresented: $isShowingPrivacyActionSheet) {
-                        ActionSheet(title: Text("Terms of Use and Privacy Policy"), buttons: [
-                                .default(Text("Terms of Use")) {
-                                    openTermsOfUseLink()
-                                },
-                                .default(Text("Privacy Policy")) {
-                                    openPrivacyPolicyLink()
-                                },
-                                .cancel()
-                            ]
-                        )
-                    }
-                }
+                preferencesSection
+                supportSection
+                generalSection
             }
-            
-            .sheet(isPresented: $isShowingAboutScreen) {
+            .sheet(isPresented: $isShowingAbout) {
                 AboutView()
             }
-            
             .navigationTitle("Settings")
-            
-            iPadWelcomeView(type: iPadWelcomeView.WelcomeViewType.settings)
         }
-        .environment(store)
     }
-    
-    func requestReviewManually() {
-        guard let writeReviewURL = URL(string: "https://apps.apple.com/us/app/outrank/id1588983785?action=write-review") else {
-            fatalError("Expected a valid URL")
-        }
-        UIApplication.shared.open(writeReviewURL, options: [:], completionHandler: nil)
-    }
-    
-    func sendFeatureRequestEmail() {
-        let email = "outrankapp@gmail.com"
-        let subject = "Outrank Feature Request"
-                    
-        let coded = "mailto:\(email)?subject=\(subject)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
-            
-        if let emailURL:NSURL = NSURL(string: coded!) {
-            if UIApplication.shared.canOpenURL(emailURL as URL){
-                UIApplication.shared.open(emailURL as URL)
+
+    private var preferencesSection: some View {
+        Section("Preferences") {
+            MultiPicker()
+
+            Picker(selection: $widgetTeam) {
+                ForEach(allTeams, id: \.self) { team in
+                    Text(team).tag(team)
+                }
+            } label: {
+                Label {
+                    Text("Widget")
+                } icon: {
+                    Image(systemName: "square.text.square.fill")
+                        .font(.title)
+                        .foregroundStyle(.purple)
+                }
             }
-       }
-    }
-    
-    func openPrivacyPolicyLink() {
-        if let url = URL(string: "https://ryantoken.com/privacy-policy") {
-            UIApplication.shared.open(url)
+            .onChange(of: widgetTeam) {
+                UserDefaults(suiteName: AppGroup.groupId.rawValue)?
+                    .set(widgetTeam, forKey: "WidgetTeam")
+                WidgetCenter.shared.reloadAllTimelines()
+            }
         }
     }
-    
-    func openTermsOfUseLink() {
-        if let url = URL(string: "https://ryantoken.com/terms-of-use") {
-            UIApplication.shared.open(url)
+
+    private var supportSection: some View {
+        Section("Support") {
+            Button(action: openWriteReview) {
+                SettingsRow(
+                    icon: "heart.square.fill",
+                    iconColor: .red,
+                    title: "Rate",
+                    showsExternalIndicator: true
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                TipJarView()
+            } label: {
+                SettingsRow(icon: "centsign.square.fill", iconColor: .orange, title: "Leave a Tip")
+            }
+            .accessibilityLabel("Leave a Tip")
+
+            NavigationLink {
+                SubscriptionsView()
+            } label: {
+                SettingsRow(icon: "dollarsign.square.fill", iconColor: .green, title: "Subscribe")
+            }
         }
+    }
+
+    private var generalSection: some View {
+        Section("General") {
+            Button(action: sendFeatureRequestEmail) {
+                SettingsRow(
+                    icon: "bolt.square.fill",
+                    iconColor: .mint,
+                    title: "Feature Request",
+                    showsExternalIndicator: true
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Send an email with a feature request")
+
+            Button {
+                isShowingAbout = true
+            } label: {
+                SettingsRow(icon: "person.crop.square.fill", iconColor: .blue, title: "About")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("About")
+
+            Button {
+                isShowingPrivacyDialog = true
+            } label: {
+                SettingsRow(icon: "lock.square.fill", iconColor: .gray, title: "Terms & Privacy Policy")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Terms of Use and Privacy Policy")
+            .confirmationDialog(
+                "Terms of Use and Privacy Policy",
+                isPresented: $isShowingPrivacyDialog,
+                titleVisibility: .visible
+            ) {
+                Button("Terms of Use", action: openTermsOfUse)
+                Button("Privacy Policy", action: openPrivacyPolicy)
+            }
+        }
+    }
+
+    private func openWriteReview() {
+        guard let url = URL(string: "https://apps.apple.com/us/app/outrank/id1588983785?action=write-review") else { return }
+        openURL(url)
+    }
+
+    private func sendFeatureRequestEmail() {
+        let mailto = "mailto:outrankapp@gmail.com?subject=Outrank Feature Request"
+        guard let encoded = mailto.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: encoded) else { return }
+        openURL(url)
+    }
+
+    private func openPrivacyPolicy() {
+        guard let url = URL(string: "https://ryantoken.com/privacy-policy") else { return }
+        openURL(url)
+    }
+
+    private func openTermsOfUse() {
+        guard let url = URL(string: "https://ryantoken.com/terms-of-use") else { return }
+        openURL(url)
     }
 }
 
-struct FavoriteTeamsLabel: View {
-    var body: some View {
-        HStack {
-            Image(systemName: "star.square.fill")
-                .font(.title)
-                .foregroundColor(.yellow)
-            Text("Favorites")
-        }
-    }
-}
-
-struct SettingsView_Previews: PreviewProvider {
-    static var previews: some View {
-        SettingsView()
-    }
+#Preview {
+    SettingsView()
+        .environment(TabController())
+        .environment(Store())
 }

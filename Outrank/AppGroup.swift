@@ -7,14 +7,10 @@
 
 import Foundation
 
-public enum AppGroup: String {
-  case groupId = "group.com.ryantoken.teamrankings"
+nonisolated enum AppGroup: String {
+    case groupId = "group.com.ryantoken.teamrankings"
 
-  public var containerURL: URL {
-    switch self {
-    case .groupId:
-      return FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: self.rawValue)!
+    var containerURL: URL {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: rawValue)!
     }
-  }
 }
