@@ -73,11 +73,7 @@ struct RankingsView: View {
                 }
             }
             .sheet(isPresented: $isShowingTeamPicker) {
-                TeamPickerView(
-                    team: $currentTeam,
-                    teamRankings: $teamRankings,
-                    type: .rankings
-                )
+                TeamPickerView(team: $currentTeam, type: .rankings)
             }
             .sheet(isPresented: $isShowingInfoSheet) {
                 InfoView(source: .rankings)
@@ -85,10 +81,8 @@ struct RankingsView: View {
             }
         }
         .tint(.primary)
-        .task {
-            if teamRankings.isEmpty {
-                await refreshRankings()
-            }
+        .task(id: currentTeam) {
+            await refreshRankings()
         }
         .onAppear {
             appUsedCount += 1
@@ -98,12 +92,16 @@ struct RankingsView: View {
     private func refreshRankings() async {
         do {
             let fetchedRankings = try await TeamFetcher.getTeamRankingsFor(team: currentTeam)
+            guard !Task.isCancelled else { return }
             teamRankings = try fetchedRankings.allProperties()
             apiError = false
             if appUsedCount > 5 {
                 requestReview()
             }
+        } catch is CancellationError {
+            // Team changed before this fetch completed; the newer task will populate rankings.
         } catch {
+            guard !Task.isCancelled else { return }
             print("Request failed with error: \(error)")
             apiError = true
         }

@@ -87,7 +87,6 @@ struct ComparisonView: View {
             .sheet(item: $presentedPicker) { type in
                 TeamPickerView(
                     team: type == .comparisonTeamOne ? $teamOne : $teamTwo,
-                    teamRankings: type == .comparisonTeamOne ? $teamOneRankings : $teamTwoRankings,
                     type: type
                 )
             }
@@ -95,10 +94,11 @@ struct ComparisonView: View {
                 InfoView(source: .compare)
                     .presentationDetents([.medium])
             }
-            .task {
-                if teamOneRankings.isEmpty && teamTwoRankings.isEmpty {
-                    await refreshRankings()
-                }
+            .task(id: teamOne) {
+                await refreshTeamOne()
+            }
+            .task(id: teamTwo) {
+                await refreshTeamTwo()
             }
         }
     }
@@ -119,14 +119,36 @@ struct ComparisonView: View {
     }
 
     private func refreshRankings() async {
-        do {
-            async let teamOneFetched = TeamFetcher.getTeamRankingsFor(team: teamOne)
-            async let teamTwoFetched = TeamFetcher.getTeamRankingsFor(team: teamTwo)
+        async let one: Void = refreshTeamOne()
+        async let two: Void = refreshTeamTwo()
+        _ = await (one, two)
+    }
 
-            teamOneRankings = try await teamOneFetched.allProperties()
-            teamTwoRankings = try await teamTwoFetched.allProperties()
+    private func refreshTeamOne() async {
+        do {
+            let fetched = try await TeamFetcher.getTeamRankingsFor(team: teamOne)
+            guard !Task.isCancelled else { return }
+            teamOneRankings = try fetched.allProperties()
             apiError = false
+        } catch is CancellationError {
+            // Team changed before the fetch completed; a newer task will populate rankings.
         } catch {
+            guard !Task.isCancelled else { return }
+            print("Request failed with error: \(error)")
+            apiError = true
+        }
+    }
+
+    private func refreshTeamTwo() async {
+        do {
+            let fetched = try await TeamFetcher.getTeamRankingsFor(team: teamTwo)
+            guard !Task.isCancelled else { return }
+            teamTwoRankings = try fetched.allProperties()
+            apiError = false
+        } catch is CancellationError {
+            // Team changed before the fetch completed; a newer task will populate rankings.
+        } catch {
+            guard !Task.isCancelled else { return }
             print("Request failed with error: \(error)")
             apiError = true
         }

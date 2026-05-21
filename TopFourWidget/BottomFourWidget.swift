@@ -30,22 +30,24 @@ nonisolated struct BottomFourProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<BottomFourEntry>) -> Void) {
-        Task.detached {
-            do {
-                let team = try await TeamFetcher.getTeamRankingsFor(
-                    team: UserDefaults(suiteName: AppGroup.groupId.rawValue)?
-                        .string(forKey: "WidgetTeam") ?? "Air Force"
-                )
+        Task {
+            let timeline = await loadTimeline()
+            completion(timeline)
+        }
+    }
 
-                let entry = BottomFourEntry(date: .now, teamRankings: try team.allProperties())
-                let timeline = Timeline(entries: [entry], policy: .after(nextUpdateDate()))
-                completion(timeline)
-            } catch {
-                print("Error fetching team rankings: \(error)")
-                let entry = BottomFourEntry(date: .now, teamRankings: [:])
-                let timeline = Timeline(entries: [entry], policy: .after(Date.now.addingTimeInterval(3600)))
-                completion(timeline)
-            }
+    private func loadTimeline() async -> Timeline<BottomFourEntry> {
+        let teamName = UserDefaults(suiteName: AppGroup.groupId.rawValue)?
+            .string(forKey: "WidgetTeam") ?? "Air Force"
+
+        do {
+            let team = try await TeamFetcher.getTeamRankingsFor(team: teamName)
+            let entry = try BottomFourEntry(date: .now, teamRankings: team.allProperties())
+            return Timeline(entries: [entry], policy: .after(nextUpdateDate()))
+        } catch {
+            print("Error fetching team rankings: \(error)")
+            let entry = BottomFourEntry(date: .now, teamRankings: [:])
+            return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(3600)))
         }
     }
 

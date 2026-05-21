@@ -38,13 +38,8 @@ struct SubscriptionsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .task {
+            .task(id: store.purchasedIdentifiers) {
                 await updateSubscriptionStatus()
-            }
-            .onChange(of: store.purchasedIdentifiers) {
-                Task {
-                    await updateSubscriptionStatus()
-                }
             }
         }
         .listStyle(.insetGrouped)

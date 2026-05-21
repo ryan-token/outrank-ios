@@ -64,6 +64,7 @@ struct TopOrBottomFourView: View {
         .padding()
         .font(.headline)
         .foregroundStyle(.primary)
+        .containerBackground(.fill.tertiary, for: .widget)
     }
 }
 

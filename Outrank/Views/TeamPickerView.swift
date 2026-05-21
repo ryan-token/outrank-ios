@@ -32,7 +32,6 @@ struct TeamPickerView: View {
     private var favorites: FetchedResults<Favorite>
 
     @Binding var team: String
-    @Binding var teamRankings: [String: Int]
 
     let type: TeamPickerTypes
     private let allTeams = AllTeams.teams
@@ -97,18 +96,9 @@ struct TeamPickerView: View {
     }
 
     private func chooseTeam(_ team: String) {
-        Task {
-            do {
-                let fetched = try await TeamFetcher.getTeamRankingsFor(team: team)
-                teamRankings = try fetched.allProperties()
-
-                UserDefaults.standard.set(team, forKey: type.userDefaultsKey)
-                self.team = team
-                HapticGenerator.playSuccessHaptic()
-            } catch {
-                print("Request failed with error: \(error)")
-            }
-        }
+        UserDefaults.standard.set(team, forKey: type.userDefaultsKey)
+        self.team = team
+        HapticGenerator.playSuccessHaptic()
     }
 
     private func removeFavorites(at offsets: IndexSet) {
