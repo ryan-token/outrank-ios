@@ -15,25 +15,46 @@ enum SettingsDetail: Hashable {
 }
 
 struct SettingsView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selectedDetail: SettingsDetail?
 
     var body: some View {
-        NavigationSplitView {
-            SettingsSidebar(selectedDetail: $selectedDetail)
-        } detail: {
-            SettingsDetailColumn(selectedDetail: selectedDetail)
+        if horizontalSizeClass == .regular {
+            NavigationSplitView {
+                SettingsSidebar(isInSplitView: true, selectedDetail: $selectedDetail)
+            } detail: {
+                SettingsDetailColumn(selectedDetail: selectedDetail)
+            }
+        } else {
+            NavigationStack {
+                SettingsSidebar(isInSplitView: false, selectedDetail: $selectedDetail)
+                    .navigationDestination(for: SettingsDetail.self) { detail in
+                        SettingsDetailColumn(selectedDetail: detail)
+                    }
+            }
         }
     }
 }
 
 private struct SettingsSidebar: View {
+    let isInSplitView: Bool
     @Binding var selectedDetail: SettingsDetail?
 
     var body: some View {
-        List(selection: $selectedDetail) {
-            PreferencesSection()
-            SupportSection()
-            GeneralSection()
+        Group {
+            if isInSplitView {
+                List(selection: $selectedDetail) {
+                    PreferencesSection()
+                    SupportSection()
+                    GeneralSection()
+                }
+            } else {
+                List {
+                    PreferencesSection()
+                    SupportSection()
+                    GeneralSection()
+                }
+            }
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)

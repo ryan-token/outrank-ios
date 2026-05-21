@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct RankingsView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.requestReview) private var requestReview
     @AppStorage("AppUsedCount") private var appUsedCount = 0
 
@@ -17,20 +18,43 @@ struct RankingsView: View {
     @State private var selectedStat: String?
 
     var body: some View {
-        NavigationSplitView {
-            RankingsSidebar(
-                currentTeam: $currentTeam,
-                teamRankings: teamRankings,
-                apiError: apiError,
-                selectedStat: $selectedStat,
-                refresh: refreshRankings
-            )
-        } detail: {
-            RankingsDetail(
-                team: currentTeam,
-                teamRankings: teamRankings,
-                selectedStat: selectedStat
-            )
+        Group {
+            if horizontalSizeClass == .regular {
+                NavigationSplitView {
+                    RankingsSidebar(
+                        isInSplitView: true,
+                        currentTeam: $currentTeam,
+                        teamRankings: teamRankings,
+                        apiError: apiError,
+                        selectedStat: $selectedStat,
+                        refresh: refreshRankings
+                    )
+                } detail: {
+                    RankingsDetail(
+                        team: currentTeam,
+                        teamRankings: teamRankings,
+                        selectedStat: selectedStat
+                    )
+                }
+            } else {
+                NavigationStack {
+                    RankingsSidebar(
+                        isInSplitView: false,
+                        currentTeam: $currentTeam,
+                        teamRankings: teamRankings,
+                        apiError: apiError,
+                        selectedStat: $selectedStat,
+                        refresh: refreshRankings
+                    )
+                    .navigationDestination(for: String.self) { stat in
+                        RankingDetailView(
+                            team: currentTeam,
+                            stat: stat,
+                            ranking: teamRankings[stat] ?? 99999
+                        )
+                    }
+                }
+            }
         }
         .tint(.primary)
         .task(id: currentTeam) {
@@ -61,6 +85,7 @@ struct RankingsView: View {
 }
 
 private struct RankingsSidebar: View {
+    let isInSplitView: Bool
     @Binding var currentTeam: String
     let teamRankings: [String: Int]
     let apiError: Bool
@@ -76,17 +101,36 @@ private struct RankingsSidebar: View {
     }
 
     var body: some View {
-        List(selection: $selectedStat) {
-            Section("Sorted by \(sortMethod.sectionLabel())") {
-                ForEach(sortedRankings, id: \.key) { item in
-                    NavigationLink(value: item.key) {
-                        RankingRow(stat: item.key, ranking: item.value)
+        Group {
+            if isInSplitView {
+                List(selection: $selectedStat) {
+                    Section("Sorted by \(sortMethod.sectionLabel())") {
+                        ForEach(sortedRankings, id: \.key) { item in
+                            NavigationLink(value: item.key) {
+                                RankingRow(stat: item.key, ranking: item.value)
+                            }
+                        }
+
+                        if apiError {
+                            Text("😕 Error loading rankings for \(currentTeam). Please try again or try a different team.")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
+            } else {
+                List {
+                    Section("Sorted by \(sortMethod.sectionLabel())") {
+                        ForEach(sortedRankings, id: \.key) { item in
+                            NavigationLink(value: item.key) {
+                                RankingRow(stat: item.key, ranking: item.value)
+                            }
+                        }
 
-                if apiError {
-                    Text("😕 Error loading rankings for \(currentTeam). Please try again or try a different team.")
-                        .foregroundStyle(.secondary)
+                        if apiError {
+                            Text("😕 Error loading rankings for \(currentTeam). Please try again or try a different team.")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }
