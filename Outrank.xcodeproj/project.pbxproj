@@ -70,13 +70,13 @@
 		F43E07342FBF5C1C00F19338 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				AppGroup.swift,
-				Colors.swift,
-				Conversions.swift,
-				LoopableProto.swift,
-				"String+CamelCaseToWords.swift",
-				Team.swift,
-				TeamFetcher.swift,
+				Persistence/AppGroup.swift,
+				Shared/Colors.swift,
+				Shared/Conversions.swift,
+				Models/LoopableProto.swift,
+				"Shared/String+CamelCaseToWords.swift",
+				Models/Team.swift,
+				Networking/TeamFetcher.swift,
 			);
 			target = F4388248270AA5120089518A /* TopFourWidgetExtension */;
 		};
@@ -462,7 +462,7 @@
 				CODE_SIGN_ENTITLEMENTS = Outrank/Outrank.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"Outrank/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Outrank/Resources/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Outrank/Info.plist;
@@ -498,7 +498,7 @@
 				CODE_SIGN_ENTITLEMENTS = Outrank/Outrank.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"Outrank/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Outrank/Resources/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Outrank/Info.plist;
