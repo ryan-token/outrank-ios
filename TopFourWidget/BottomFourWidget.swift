@@ -8,75 +8,55 @@
 import WidgetKit
 import SwiftUI
 
-struct BottomFourProvider: TimelineProvider {
-    public typealias Entry = BottomFourEntry
-    
-    func placeholder(in context: Context) -> BottomFourEntry {
-        do {
-            return BottomFourEntry(date: Date(), teamRankings: try Team.exampleTeam.allProperties())
-        } catch {
-            print("error setting placeholder entry")
-            return BottomFourEntry(date: Date(), teamRankings: ["test":99999])
-        }
-    }
-
-    func getSnapshot(in context: Context, completion: @escaping (BottomFourEntry) -> ()) {
-        do {
-            let entry = BottomFourEntry(date: Date(), teamRankings: try Team.exampleTeam.allProperties())
-            completion(entry)
-        } catch {
-            print("error setting snapshot entry")
-        }
-    }
-
-    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<Entry>) -> ()) {
-        Task.detached {
-            do {
-                let team = try await TeamFetcher.getTeamRankingsFor(
-                    team: UserDefaults(suiteName: "group.com.ryantoken.teamrankings")?.string(forKey: "WidgetTeam") ?? "Air Force"
-                )
-
-                let teamRankings = try team.allProperties()
-
-                // update at 10:00am daily
-                let now = Date()
-                let calendar = Calendar.current
-                var dateComponents = DateComponents()
-                dateComponents.year = calendar.component(.year, from: now)
-                dateComponents.month = calendar.component(.month, from: now)
-                dateComponents.day = calendar.component(.day, from: now) + 1
-                dateComponents.hour = 10
-                dateComponents.minute = 0
-                dateComponents.second = 0
-                let nextUpdate = calendar.date(from: dateComponents)
-
-                let entry = BottomFourEntry(date: now, teamRankings: teamRankings)
-                let entries = [entry]
-                let timeline = Timeline(entries: entries, policy: .after(nextUpdate!))
-
-                completion(timeline)
-
-            } catch {
-                print("Error fetching team rankings: \(error)")
-                // Create a fallback timeline
-                let entry = BottomFourEntry(date: Date(), teamRankings: [:])
-                let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(3600)))
-                completion(timeline)
-            }
-        }
-    }
-}
-
-struct BottomFourEntry: TimelineEntry {
+nonisolated struct BottomFourEntry: TimelineEntry {
     let date: Date
-    let teamRankings: [String:Int]
+    let teamRankings: [String: Int]
 }
 
-struct BottomFourWidgetEntryView : View {
-    var entry: BottomFourProvider.Entry
+nonisolated struct BottomFourProvider: TimelineProvider {
+    func placeholder(in context: Context) -> BottomFourEntry {
+        BottomFourEntry(
+            date: .now,
+            teamRankings: (try? Team.exampleTeam.allProperties()) ?? ["test": 99999]
+        )
+    }
 
-    var body: some View {
-        TopOrBottomFourView(type: TopOrBottomFourView.WidgetType.bottomFour, teamRankings: entry.teamRankings)
+    func getSnapshot(in context: Context, completion: @escaping (BottomFourEntry) -> Void) {
+        let entry = BottomFourEntry(
+            date: .now,
+            teamRankings: (try? Team.exampleTeam.allProperties()) ?? ["test": 99999]
+        )
+        completion(entry)
+    }
+
+    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<BottomFourEntry>) -> Void) {
+        Task {
+            let timeline = await loadTimeline()
+            completion(timeline)
+        }
+    }
+
+    private func loadTimeline() async -> Timeline<BottomFourEntry> {
+        let teamName = UserDefaults(suiteName: AppGroup.groupId.rawValue)?
+            .string(forKey: "WidgetTeam") ?? "Air Force"
+
+        do {
+            let team = try await TeamFetcher.getTeamRankingsFor(team: teamName)
+            let entry = try BottomFourEntry(date: .now, teamRankings: team.allProperties())
+            return Timeline(entries: [entry], policy: .after(nextUpdateDate()))
+        } catch {
+            print("Error fetching team rankings: \(error)")
+            let entry = BottomFourEntry(date: .now, teamRankings: [:])
+            return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(3600)))
+        }
+    }
+
+    private func nextUpdateDate() -> Date {
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: .now)
+        components.day = (components.day ?? 0) + 1
+        components.hour = 10
+        return calendar.date(from: components) ?? .now.addingTimeInterval(3600)
     }
 }
 
@@ -85,22 +65,10 @@ struct BottomFourWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: BottomFourProvider()) { entry in
-            BottomFourWidgetEntryView(entry: entry)
+            TopOrBottomFourView(type: .bottomFour, teamRankings: entry.teamRankings)
         }
         .configurationDisplayName("Bottom Four Widget")
         .description("A team's bottom four stats. Change the team in the app's Settings page.")
         .supportedFamilies([.systemMedium])
-    }
-}
-
-struct BottomFourWidget_Previews: PreviewProvider {
-    static var previews: some View {
-        do {
-            return BottomFourWidgetEntryView(entry: BottomFourEntry(date: Date(), teamRankings: try Team.exampleTeam.allProperties()))
-                .previewContext(WidgetPreviewContext(family: .systemMedium))
-        } catch {
-            return BottomFourWidgetEntryView(entry: BottomFourEntry(date: Date(), teamRankings: ["test":99999]))
-                .previewContext(WidgetPreviewContext(family: .systemMedium))
-        }
     }
 }

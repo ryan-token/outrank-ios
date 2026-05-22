@@ -1,5 +1,5 @@
 //
-//  TopFourView.swift
+//  TopOrBottomFourView.swift
 //  TopFourWidgetExtension
 //
 //  Created by Ryan Token on 10/9/21.
@@ -7,109 +7,85 @@
 
 import SwiftUI
 
+enum WidgetType {
+    case topFour
+    case bottomFour
+
+    func title(for team: String) -> String {
+        switch self {
+        case .topFour: "\(team)'s Top Four"
+        case .bottomFour: "\(team)'s Bottom Four"
+        }
+    }
+
+    var rankingColor: Color {
+        switch self {
+        case .topFour: .green
+        case .bottomFour: .red
+        }
+    }
+}
+
 struct TopOrBottomFourView: View {
-    var type: WidgetType
-    var teamRankings: [String:Int]
-    
-    enum WidgetType {
-        case topFour
-        case bottomFour
-    }
-    
-    let widgetTeam = UserDefaults(suiteName: "group.com.ryantoken.teamrankings")?.string(forKey: "WidgetTeam") ?? "Air Force"
-    
-    var sortedDictionary: [Dictionary<String, Int>.Element] {
-        var rankings = teamRankings
-        // remove 99999 (aka "Unknown") values from the widgets
-        for (key, value) in rankings where value == 99999 {
-            rankings.removeValue(forKey: key)
+    let type: WidgetType
+    let teamRankings: [String: Int]
+
+    private let widgetTeam = UserDefaults(suiteName: AppGroup.groupId.rawValue)?
+        .string(forKey: "WidgetTeam") ?? "Air Force"
+
+    private var sortedFour: [(key: String, value: Int)] {
+        let filtered = teamRankings.filter { $0.value != 99999 }
+
+        let sorted: [(key: String, value: Int)] = switch type {
+        case .topFour: filtered.sorted { $0.value < $1.value }
+        case .bottomFour: filtered.sorted { $0.value > $1.value }
         }
-        
-        if type == WidgetType.topFour {
-            let teamRankingsSorted = rankings.sorted{ $0.value < $1.value }
-            if teamRankingsSorted.isEmpty {
-                return []
-            } else {
-                let topFourSorted = teamRankingsSorted[...3]
-                return Array(topFourSorted)
-            }
-        } else {
-            let teamRankingsSorted = rankings.sorted{ $0.value > $1.value }
-            if teamRankingsSorted.isEmpty {
-                return []
-            } else {
-                let bottomFourSorted = teamRankingsSorted[...3]
-                return Array(bottomFourSorted)
-            }
-        }
+
+        return Array(sorted.prefix(4))
     }
-    
+
     var body: some View {
         VStack(spacing: 6) {
-            if type == WidgetType.topFour {
-                Text("\(widgetTeam)'s Top Four")
-                    .foregroundColor(.gray)
-            } else {
-                Text("\(widgetTeam)'s Bottom Four")
-                    .foregroundColor(.gray)
-            }
-            
-            if !sortedDictionary.isEmpty {
-                HStack {
-                    Text("\(Conversions.getHumanReadableStat(for: sortedDictionary[0].key)):")
-                    
-                    Spacer()
-                    
-                    Text(Conversions.getHumanReadableRanking(for: sortedDictionary[0].value))
-                        .foregroundColor(type == WidgetType.topFour ? .green : .red)
-                    
-                }
-                
-                HStack {
-                    
-                    Text("\(Conversions.getHumanReadableStat(for: sortedDictionary[1].key)):")
-                    
-                    Spacer()
-                    
-                    Text(Conversions.getHumanReadableRanking(for: sortedDictionary[1].value))
-                        .foregroundColor(type == WidgetType.topFour ? .green : .red)
-                }
-                
-                HStack {
-                    Text("\(Conversions.getHumanReadableStat(for: sortedDictionary[2].key)):")
-                    
-                    Spacer()
-                    
-                    Text(Conversions.getHumanReadableRanking(for: sortedDictionary[2].value))
-                        .foregroundColor(type == WidgetType.topFour ? .green : .red)
-                    
-                }
-                
-                HStack {
-                    Text("\(Conversions.getHumanReadableStat(for: sortedDictionary[3].key)):")
-                    
-                    Spacer()
-                    
-                    Text(Conversions.getHumanReadableRanking(for: sortedDictionary[3].value))
-                        .foregroundColor(type == WidgetType.topFour ? .green : .red)
-                }
-            } else {
+            Text(type.title(for: widgetTeam))
+                .foregroundStyle(.secondary)
+
+            if sortedFour.isEmpty {
                 Text("No Data")
+            } else {
+                ForEach(sortedFour, id: \.key) { item in
+                    WidgetRankingRow(
+                        stat: item.key,
+                        ranking: item.value,
+                        rankingColor: type.rankingColor
+                    )
+                }
             }
         }
         .padding()
         .font(.headline)
-        .foregroundColor(.primary)
+        .foregroundStyle(.primary)
+        .containerBackground(.fill.tertiary, for: .widget)
     }
 }
 
-struct TopOrBottomFourView_Previews: PreviewProvider {
-    static var previews: some View {
-        do {
-            return TopOrBottomFourView(type: TopOrBottomFourView.WidgetType.topFour, teamRankings: try Team.exampleTeam.allProperties())
+private struct WidgetRankingRow: View {
+    let stat: String
+    let ranking: Int
+    let rankingColor: Color
 
-        } catch {
-            return TopOrBottomFourView(type: TopOrBottomFourView.WidgetType.topFour, teamRankings: ["test":99999])
+    var body: some View {
+        HStack {
+            Text("\(Conversions.getHumanReadableStat(for: stat)):")
+            Spacer()
+            Text(Conversions.getHumanReadableRanking(for: ranking))
+                .foregroundStyle(rankingColor)
         }
     }
+}
+
+#Preview {
+    TopOrBottomFourView(
+        type: .topFour,
+        teamRankings: (try? Team.exampleTeam.allProperties()) ?? ["test": 99999]
+    )
 }
