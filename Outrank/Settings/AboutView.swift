@@ -46,24 +46,24 @@ struct AboutView: View {
                         } label: {
                             OtherAppRow(
                                 image: "CatchUp",
-                                title: "CatchUp – Keep in Touch",
-                                subtitle: "Stay in touch with those who matter most"
+                                title: "CatchUp: Keep in Touch",
+                                subtitle: "Personal relationship manager"
                             )
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Try out this developer's other app: CatchUp – Keep in Touch")
+                        .accessibilityLabel("Try out this developer's other app, CatchUp: Keep in Touch")
 
                         Button {
                             openURL(hotLocalFoodURL)
                         } label: {
                             OtherAppRow(
                                 image: "HLF",
-                                title: "Hot Local Food",
-                                subtitle: "Find love, then eat it"
+                                title: "Hot Local Food: Find Dinner",
+                                subtitle: "Swipe & discover restaurants"
                             )
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Try out this developer's other app: Hot Local Food")
+                        .accessibilityLabel("Try out this developer's other app, Hot Local Food: Find Dinner")
                     }
                 }
             }
