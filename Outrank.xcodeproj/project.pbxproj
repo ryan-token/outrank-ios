@@ -70,13 +70,12 @@
 		F43E07342FBF5C1C00F19338 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Models/RankingsResponse.swift,
+				Networking/TeamFetcher.swift,
 				Persistence/AppGroup.swift,
 				Shared/Colors.swift,
 				Shared/Conversions.swift,
-				Models/LoopableProto.swift,
 				"Shared/String+CamelCaseToWords.swift",
-				Models/Team.swift,
-				Networking/TeamFetcher.swift,
 			);
 			target = F4388248270AA5120089518A /* TopFourWidgetExtension */;
 		};

@@ -10,6 +10,7 @@ import SwiftUI
 struct RankingDetailView: View {
     @State private var statRankings: [String: Int] = [:]
     @State private var apiError = false
+    @State private var reloadAttempt = 0
 
     let team: String
     let stat: String
@@ -33,7 +34,7 @@ struct RankingDetailView: View {
                 HStack {
                     Text("\(team)'s Ranking:")
                     Text(humanReadableRanking)
-                        .foregroundStyle(ranking < 65 ? .green : .red)
+                        .foregroundStyle(RankingStyle.color(for: ranking))
                 }
                 .font(.headline)
             }
@@ -51,16 +52,19 @@ struct RankingDetailView: View {
                     .font(.headline)
 
                 ForEach(sortedRankings, id: \.key) { item in
+                    let teamName = AllTeams.name(forAPIKey: item.key)
+
                     OtherTeamRankingRow(
-                        team: Conversions.getHumanReadableTeam(from: item.key),
+                        team: teamName,
                         ranking: item.value,
-                        isCurrentTeam: team == Conversions.getHumanReadableTeam(from: item.key)
+                        isCurrentTeam: team == teamName
                     )
                 }
 
                 if apiError {
-                    Text("😕 Error loading rankings for \(humanReadableStat).")
-                        .foregroundStyle(.secondary)
+                    RankingsLoadFailed(stat: humanReadableStat) {
+                        reloadAttempt += 1
+                    }
                 }
             }
         }
@@ -71,21 +75,48 @@ struct RankingDetailView: View {
                 Text(humanReadableStat).font(.headline)
             }
         }
-        .task {
-            if statRankings.isEmpty {
-                await loadRankings()
-            }
+        .refreshable {
+            await loadRankings()
         }
+        // Keyed on the retry counter as well as the stat, so tapping "Try Again" restarts
+        // a task SwiftUI still owns and cancels, rather than an unstructured one.
+        .task(id: ReloadKey(stat: stat, attempt: reloadAttempt)) {
+            await loadRankings()
+        }
+    }
+
+    private struct ReloadKey: Hashable {
+        let stat: String
+        let attempt: Int
     }
 
     private func loadRankings() async {
         do {
             let fetched = try await StatFetcher.getStatRankingsFor(stat: stat)
-            statRankings = try fetched.allProperties()
+            guard !Task.isCancelled else { return }
+            statRankings = fetched.rankings
             apiError = false
+        } catch is CancellationError {
+            // The stat changed before this fetch completed; a newer task will populate rankings.
         } catch {
+            guard !Task.isCancelled else { return }
             print("Request failed with error: \(error)")
             apiError = true
+        }
+    }
+}
+
+private struct RankingsLoadFailed: View {
+    let stat: String
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("😕 Error loading rankings for \(stat).")
+                .foregroundStyle(.secondary)
+
+            Button("Try Again", action: retry)
+                .buttonStyle(.bordered)
         }
     }
 }
@@ -100,7 +131,7 @@ private struct OtherTeamRankingRow: View {
             Text(team)
             Spacer()
             Text(Conversions.getHumanReadableRanking(for: ranking))
-                .foregroundStyle(ranking < 65 ? .green : .red)
+                .foregroundStyle(RankingStyle.color(for: ranking))
         }
         .font(isCurrentTeam ? .headline : .body)
     }

@@ -28,17 +28,15 @@ enum WidgetType {
 
 struct TopOrBottomFourView: View {
     let type: WidgetType
-    let teamRankings: [String: Int]
-
-    private let widgetTeam = UserDefaults(suiteName: AppGroup.groupId.rawValue)?
-        .string(forKey: "WidgetTeam") ?? "Air Force"
+    let team: String
+    let rankings: [String: Int]
 
     private var sortedFour: [(key: String, value: Int)] {
-        let filtered = teamRankings.filter { $0.value != 99999 }
+        let ranked = rankings.filter { $0.value != RankingsResponse.unranked }
 
         let sorted: [(key: String, value: Int)] = switch type {
-        case .topFour: filtered.sorted { $0.value < $1.value }
-        case .bottomFour: filtered.sorted { $0.value > $1.value }
+        case .topFour: ranked.sorted { $0.value < $1.value }
+        case .bottomFour: ranked.sorted { $0.value > $1.value }
         }
 
         return Array(sorted.prefix(4))
@@ -46,7 +44,7 @@ struct TopOrBottomFourView: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            Text(type.title(for: widgetTeam))
+            Text(type.title(for: team))
                 .foregroundStyle(.secondary)
 
             if sortedFour.isEmpty {
@@ -86,6 +84,7 @@ private struct WidgetRankingRow: View {
 #Preview {
     TopOrBottomFourView(
         type: .topFour,
-        teamRankings: (try? Team.exampleTeam.allProperties()) ?? ["test": 99999]
+        team: "Tulsa",
+        rankings: ["ScoringOffense": 3, "TotalOffense": 7, "RushingOffense": 11, "TurnoverMargin": 14]
     )
 }

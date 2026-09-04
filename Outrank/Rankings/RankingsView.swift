@@ -17,16 +17,27 @@ struct RankingsView: View {
     @State private var apiError = false
     @State private var selectedStat: String?
 
+    // Owned here rather than by RankingsSidebar. The sidebar sits inside both branches of
+    // the size-class check below, and those are two distinct positions in the view tree:
+    // flipping between them (rotating an iPad, resizing a Stage Manager window) tears the
+    // sidebar down and takes any state it owned with it.
+    @State private var sortMethod: SortMethod = .byStatAlphabetically
+    @State private var isShowingTeamPicker = false
+    @State private var isShowingInfoSheet = false
+
     var body: some View {
         Group {
             if horizontalSizeClass == .regular {
                 NavigationSplitView {
                     RankingsSidebar(
                         isInSplitView: true,
-                        currentTeam: $currentTeam,
+                        currentTeam: currentTeam,
                         teamRankings: teamRankings,
                         apiError: apiError,
                         selectedStat: $selectedStat,
+                        sortMethod: $sortMethod,
+                        isShowingTeamPicker: $isShowingTeamPicker,
+                        isShowingInfoSheet: $isShowingInfoSheet,
                         refresh: refreshRankings
                     )
                 } detail: {
@@ -40,23 +51,34 @@ struct RankingsView: View {
                 NavigationStack {
                     RankingsSidebar(
                         isInSplitView: false,
-                        currentTeam: $currentTeam,
+                        currentTeam: currentTeam,
                         teamRankings: teamRankings,
                         apiError: apiError,
                         selectedStat: $selectedStat,
+                        sortMethod: $sortMethod,
+                        isShowingTeamPicker: $isShowingTeamPicker,
+                        isShowingInfoSheet: $isShowingInfoSheet,
                         refresh: refreshRankings
                     )
                     .navigationDestination(for: String.self) { stat in
                         RankingDetailView(
                             team: currentTeam,
                             stat: stat,
-                            ranking: teamRankings[stat] ?? 99999
+                            ranking: teamRankings[stat] ?? RankingsResponse.unranked
                         )
                     }
                 }
             }
         }
         .tint(.primary)
+        // Presented from out here so an open sheet survives a size-class change too.
+        .sheet(isPresented: $isShowingTeamPicker) {
+            TeamPickerView(team: $currentTeam, type: .rankings)
+        }
+        .sheet(isPresented: $isShowingInfoSheet) {
+            InfoView(source: .rankings)
+                .presentationDetents([.medium])
+        }
         .task(id: currentTeam) {
             await refreshRankings()
         }
@@ -67,9 +89,9 @@ struct RankingsView: View {
 
     private func refreshRankings() async {
         do {
-            let fetchedRankings = try await TeamFetcher.getTeamRankingsFor(team: currentTeam)
+            let fetched = try await TeamFetcher.getTeamRankingsFor(team: currentTeam)
             guard !Task.isCancelled else { return }
-            teamRankings = try fetchedRankings.allProperties()
+            teamRankings = fetched.rankings
             apiError = false
             if appUsedCount > 5 {
                 requestReview()
@@ -86,51 +108,34 @@ struct RankingsView: View {
 
 private struct RankingsSidebar: View {
     let isInSplitView: Bool
-    @Binding var currentTeam: String
+    let currentTeam: String
     let teamRankings: [String: Int]
     let apiError: Bool
     @Binding var selectedStat: String?
+    @Binding var sortMethod: SortMethod
+    @Binding var isShowingTeamPicker: Bool
+    @Binding var isShowingInfoSheet: Bool
     let refresh: () async -> Void
-
-    @State private var sortMethod: SortMethod = .byStatAlphabetically
-    @State private var isShowingTeamPicker = false
-    @State private var isShowingInfoSheet = false
-
-    private var sortedRankings: [(key: String, value: Int)] {
-        sortMethod.sort(teamRankings)
-    }
 
     var body: some View {
         Group {
             if isInSplitView {
                 List(selection: $selectedStat) {
-                    Section("Sorted by \(sortMethod.sectionLabel())") {
-                        ForEach(sortedRankings, id: \.key) { item in
-                            NavigationLink(value: item.key) {
-                                RankingRow(stat: item.key, ranking: item.value)
-                            }
-                        }
-
-                        if apiError {
-                            Text("😕 Error loading rankings for \(currentTeam). Please try again or try a different team.")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    RankingsSection(
+                        currentTeam: currentTeam,
+                        teamRankings: teamRankings,
+                        apiError: apiError,
+                        sortMethod: sortMethod
+                    )
                 }
             } else {
                 List {
-                    Section("Sorted by \(sortMethod.sectionLabel())") {
-                        ForEach(sortedRankings, id: \.key) { item in
-                            NavigationLink(value: item.key) {
-                                RankingRow(stat: item.key, ranking: item.value)
-                            }
-                        }
-
-                        if apiError {
-                            Text("😕 Error loading rankings for \(currentTeam). Please try again or try a different team.")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    RankingsSection(
+                        currentTeam: currentTeam,
+                        teamRankings: teamRankings,
+                        apiError: apiError,
+                        sortMethod: sortMethod
+                    )
                 }
             }
         }
@@ -161,12 +166,31 @@ private struct RankingsSidebar: View {
                     .foregroundStyle(.primary)
             }
         }
-        .sheet(isPresented: $isShowingTeamPicker) {
-            TeamPickerView(team: $currentTeam, type: .rankings)
-        }
-        .sheet(isPresented: $isShowingInfoSheet) {
-            InfoView(source: .rankings)
-                .presentationDetents([.medium])
+    }
+}
+
+private struct RankingsSection: View {
+    let currentTeam: String
+    let teamRankings: [String: Int]
+    let apiError: Bool
+    let sortMethod: SortMethod
+
+    private var sortedRankings: [(key: String, value: Int)] {
+        sortMethod.sort(teamRankings)
+    }
+
+    var body: some View {
+        Section("Sorted by \(sortMethod.sectionLabel())") {
+            ForEach(sortedRankings, id: \.key) { item in
+                NavigationLink(value: item.key) {
+                    RankingRow(stat: item.key, ranking: item.value)
+                }
+            }
+
+            if apiError {
+                Text("😕 Error loading rankings for \(currentTeam). Please try again or try a different team.")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -181,7 +205,7 @@ private struct RankingsDetail: View {
             RankingDetailView(
                 team: team,
                 stat: selectedStat,
-                ranking: teamRankings[selectedStat] ?? 99999
+                ranking: teamRankings[selectedStat] ?? RankingsResponse.unranked
             )
             .id(selectedStat)
         } else {
@@ -202,7 +226,7 @@ private struct RankingRow: View {
             Spacer()
 
             Text(Conversions.getHumanReadableRanking(for: ranking))
-                .foregroundStyle(ranking < 65 ? .green : .red)
+                .foregroundStyle(RankingStyle.color(for: ranking))
         }
     }
 }

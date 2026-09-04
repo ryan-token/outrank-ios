@@ -25,6 +25,11 @@ enum InfoSource {
         }
     }
 
+    /// Both pages use the same neutral tint for a team with no ranking in a stat.
+    var greyDescription: LocalizedStringResource {
+        "means the team isn't ranked in that stat yet."
+    }
+
     var heading: LocalizedStringResource {
         switch self {
         case .rankings: "Rankings page colors"
@@ -54,10 +59,15 @@ struct InfoView: View {
 
                 let green = Text("green ranking ").foregroundStyle(.green).font(.headline)
                 let red = Text("red ranking ").foregroundStyle(.red).font(.headline)
+                let grey = Text("grey ranking ").foregroundStyle(.secondary).font(.headline)
 
                 Text("On this page, a \(green) \(source.greenDescription) A \(red) \(source.redDescription)")
                     .foregroundStyle(.secondary)
                     .padding(15)
+
+                Text("A \(grey) \(source.greyDescription)")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 15)
 
                 Text(source.otherPageNote)
                     .foregroundStyle(.secondary)

@@ -32,8 +32,16 @@ struct ComparisonRow: View {
     }
 
     private func color(for ranking: Int, comparedTo other: Int) -> Color {
-        if ranking < other { .green }
-        else if ranking > other { .red }
-        else { .yellow }
+        // A team with no ranking in this stat has not lost the comparison, so it
+        // gets a neutral tint rather than being colored as the worse of the two.
+        guard ranking != RankingsResponse.unranked else { return .secondary }
+
+        if ranking < other {
+            return .green
+        } else if ranking > other {
+            return .red
+        } else {
+            return .yellow
+        }
     }
 }

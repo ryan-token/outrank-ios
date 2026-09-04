@@ -12,14 +12,14 @@ nonisolated enum TeamFetcher {
         case invalidURL
         case missingData
     }
-    
-    static func getTeamRankingsFor(team: String) async throws -> Team {
+
+    static func getTeamRankingsFor(team: String) async throws -> RankingsResponse {
         print("getting rankings for \(team)")
         let endpoint = "https://tapbejtlgh.execute-api.us-east-2.amazonaws.com/dev/singleTeamQuery?team=\(team)"
         let cleanEndpoint = endpoint.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let finalEndpoint = cleanEndpoint.replacing("&", with: "%26")
         print(finalEndpoint)
-        
+
         guard let url = URL(string: finalEndpoint) else {
             throw TeamFetcherError.invalidURL
         }
@@ -29,7 +29,7 @@ nonisolated enum TeamFetcher {
         let (data, _) = try await URLSession.shared.data(from: url)
 
         // Parse the JSON data
-        let teamRankings = try JSONDecoder().decode(Team.self, from: data)
+        let teamRankings = try JSONDecoder().decode(RankingsResponse.self, from: data)
         return teamRankings
     }
 }

@@ -52,7 +52,7 @@ struct ComparisonView: View {
                             ComparisonRow(
                                 stat: item.key,
                                 teamOneRanking: item.value,
-                                teamTwoRanking: teamTwoRankings[item.key] ?? 99999
+                                teamTwoRanking: teamTwoRankings[item.key] ?? RankingsResponse.unranked
                             )
                         }
                     }
@@ -130,7 +130,7 @@ struct ComparisonView: View {
         do {
             let fetched = try await TeamFetcher.getTeamRankingsFor(team: teamOne)
             guard !Task.isCancelled else { return }
-            teamOneRankings = try fetched.allProperties()
+            teamOneRankings = fetched.rankings
             apiError = false
         } catch is CancellationError {
             // Team changed before the fetch completed; a newer task will populate rankings.
@@ -145,7 +145,7 @@ struct ComparisonView: View {
         do {
             let fetched = try await TeamFetcher.getTeamRankingsFor(team: teamTwo)
             guard !Task.isCancelled else { return }
-            teamTwoRankings = try fetched.allProperties()
+            teamTwoRankings = fetched.rankings
             apiError = false
         } catch is CancellationError {
             // Team changed before the fetch completed; a newer task will populate rankings.
