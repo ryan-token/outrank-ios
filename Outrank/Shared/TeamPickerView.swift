@@ -14,49 +14,64 @@ import SwiftUI
 struct TeamPickerView: View {
     @Environment(\.managedObjectContext) private var moc
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openSettings) private var openSettings
+    @Environment(WindowRouter.self) private var router
 
     @FetchRequest(fetchRequest: Favorite.allFavoritesFetchRequest, animation: .default)
     private var favorites: FetchedResults<Favorite>
 
     @Binding var team: String
 
+    @State private var search = TeamSearch()
     @State private var chooseHapticTrigger = 0
     @State private var isShowingRemoveError = false
 
     private static let logger = Logger(category: "TeamPickerView")
 
     var body: some View {
+        let matchingFavorites = favorites.uniquedByTeam().filter { search.matches($0.team) }
+
         NavigationStack {
             List {
-                Section("Favorite Teams") {
-                    ForEach(favorites.uniquedByTeam()) { favorite in
-                        Button {
-                            choose(favorite.team)
-                        } label: {
-                            TeamPickerRow(team: favorite.team, isFavorite: true)
+                if !search.isSearching || !matchingFavorites.isEmpty {
+                    Section("Favorite Teams") {
+                        ForEach(matchingFavorites) { favorite in
+                            Button {
+                                choose(favorite.team)
+                            } label: {
+                                TeamPickerRow(team: favorite.team, isFavorite: true)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
-                    }
-                    .onDelete(perform: removeFavorites)
+                        .onDelete { offsets in
+                            removeFavorites(at: offsets, in: matchingFavorites)
+                        }
 
-                    if favorites.isEmpty {
-                        Button("Choose favorites in Settings", systemImage: "gear", action: openFavoritesSettings)
-                            .foregroundStyle(.secondary)
+                        if favorites.isEmpty {
+                            Button("Choose favorites in Settings", systemImage: "gear", action: openFavoritesSettings)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
-                Section("All Teams") {
-                    ForEach(AllTeams.all) { fbsTeam in
-                        Button {
-                            choose(fbsTeam.name)
-                        } label: {
-                            TeamPickerRow(team: fbsTeam.name, isFavorite: false)
+                if !search.matchingTeams.isEmpty {
+                    Section("All Teams") {
+                        ForEach(search.matchingTeams) { fbsTeam in
+                            Button {
+                                choose(fbsTeam.name)
+                            } label: {
+                                TeamPickerRow(team: fbsTeam.name, isFavorite: false)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
+            .overlay {
+                if search.matchingTeams.isEmpty {
+                    ContentUnavailableView.search
+                }
+            }
+            .searchable(text: $search.text, prompt: "Search Teams")
             .navigationTitle("Choose Team")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -79,14 +94,15 @@ struct TeamPickerView: View {
 
     private func openFavoritesSettings() {
         dismiss()
-        openSettings(.favorites)
+        router.openSettings(.favorites)
     }
 
-    private func removeFavorites(at offsets: IndexSet) {
+    /// - Parameter shownFavorites: The favorites as listed, possibly narrowed by a search,
+    ///   which `offsets` index into.
+    private func removeFavorites(at offsets: IndexSet, in shownFavorites: [Favorite]) {
         // Map row offsets to team names, then delete ALL favorites with that
         // team name. This cleans up any duplicate rows in a single swipe.
-        let uniqueFavorites = favorites.uniquedByTeam()
-        let teamsToRemove = Set(offsets.map { uniqueFavorites[$0].team })
+        let teamsToRemove = Set(offsets.map { shownFavorites[$0].team })
         for favorite in favorites where teamsToRemove.contains(favorite.team) {
             moc.delete(favorite)
         }
@@ -103,5 +119,6 @@ struct TeamPickerView: View {
 
 #Preview {
     TeamPickerView(team: .constant("Tulsa"))
+        .environment(WindowRouter())
         .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

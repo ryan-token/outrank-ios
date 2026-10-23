@@ -79,5 +79,6 @@ struct ComparisonView: View {
 
 #Preview {
     ComparisonView()
+        .environment(WindowRouter())
         .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

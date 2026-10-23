@@ -61,5 +61,6 @@ struct RankingsView: View {
 
 #Preview {
     RankingsView()
+        .environment(WindowRouter())
         .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

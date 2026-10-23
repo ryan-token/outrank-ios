@@ -40,7 +40,7 @@ struct RankingsSidebar: View {
             // Each item has a symbol as well as a title, so on iPhone Duo it can move
             // into the vertical bar instead of holding a horizontal bar open.
             ToolbarItem(placement: .topBarLeading) {
-                Button("Choose Team", systemImage: "person.3", action: showTeamPicker)
+                Button("Choose Team", systemImage: "american.football", action: showTeamPicker)
             }
 
             ToolbarItem(placement: .topBarTrailing) {

@@ -15,6 +15,7 @@ struct MultiPickerView: View {
     @FetchRequest(fetchRequest: Favorite.allFavoritesFetchRequest, animation: .default)
     private var favorites: FetchedResults<Favorite>
 
+    @State private var search = TeamSearch()
     @State private var isShowingSaveError = false
 
     private static let logger = Logger(category: "MultiPickerView")
@@ -22,35 +23,46 @@ struct MultiPickerView: View {
     var body: some View {
         // Built once per update, not once per row in the 130-plus row team list below.
         let favoriteTeamNames = Set(favorites.map(\.team))
+        let matchingFavorites = favorites.uniquedByTeam().filter { search.matches($0.team) }
 
         List {
-            Section("Favorite Teams") {
-                ForEach(favorites.uniquedByTeam()) { favorite in
-                    Button {
-                        toggleSelection(team: favorite.team)
-                    } label: {
-                        FavoriteTeamRow(team: favorite.team, isFavorite: true)
+            if !search.isSearching || !matchingFavorites.isEmpty {
+                Section("Favorite Teams") {
+                    ForEach(matchingFavorites) { favorite in
+                        Button {
+                            toggleSelection(team: favorite.team)
+                        } label: {
+                            FavoriteTeamRow(team: favorite.team, isFavorite: true)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                }
 
-                if favorites.isEmpty {
-                    Text("No favorites yet ☹️")
-                        .foregroundStyle(.secondary)
+                    if favorites.isEmpty {
+                        Text("No favorites yet ☹️")
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
-            Section("All Teams") {
-                ForEach(AllTeams.all) { team in
-                    Button {
-                        toggleSelection(team: team.name)
-                    } label: {
-                        FavoriteTeamRow(team: team.name, isFavorite: favoriteTeamNames.contains(team.name))
+            if !search.matchingTeams.isEmpty {
+                Section("All Teams") {
+                    ForEach(search.matchingTeams) { team in
+                        Button {
+                            toggleSelection(team: team.name)
+                        } label: {
+                            FavoriteTeamRow(team: team.name, isFavorite: favoriteTeamNames.contains(team.name))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
+        .overlay {
+            if search.matchingTeams.isEmpty {
+                ContentUnavailableView.search
+            }
+        }
+        .searchable(text: $search.text, prompt: "Search Teams")
         .navigationTitle("Favorites")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Couldn't Update Favorites", isPresented: $isShowingSaveError) {

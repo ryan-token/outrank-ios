@@ -13,6 +13,8 @@ struct MainView: View {
     @SceneStorage("ActiveTab") private var activeTab = AppTab.rankings
     @SceneStorage("SettingsDetail") private var settingsDetail: SettingsDetail?
 
+    @State private var router = WindowRouter()
+
     var body: some View {
         TabView(selection: $activeTab) {
             Tab("Rankings", systemImage: "list.bullet.rectangle.portrait", value: .rankings) {
@@ -27,12 +29,15 @@ struct MainView: View {
                 SettingsView(selectedDetail: $settingsDetail)
             }
         }
-        .environment(\.openSettings, OpenSettingsAction(handler: openSettings))
-    }
-
-    private func openSettings(_ detail: SettingsDetail) {
-        activeTab = .settings
-        settingsDetail = detail
+        .environment(router)
+        // The selection lives in scene storage, which the router can't write, so the
+        // window applies each request here.
+        .onChange(of: router.requestedSettingsDetail) { _, detail in
+            guard let detail else { return }
+            activeTab = .settings
+            settingsDetail = detail
+            router.clearRequest()
+        }
     }
 }
 

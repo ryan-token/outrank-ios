@@ -33,7 +33,8 @@ struct RankingRow: View {
             Text(Conversions.humanReadableRanking(for: ranking))
                 .font(rankingFont)
                 .foregroundStyle(RankingStyle.color(for: ranking))
-                .fixedSize()
+                // Takes its full width first, so the name is what wraps.
+                .layoutPriority(1)
         }
         .accessibilityElement(children: .combine)
     }

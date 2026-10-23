@@ -41,3 +41,11 @@ struct ComparisonHeader: View {
         .padding(.horizontal)
     }
 }
+
+#Preview("Long Team Names") {
+    let defaults = UserDefaults(suiteName: "ComparisonHeaderPreview") ?? .standard
+    defaults.set("Southern California", forKey: ComparisonModel.teamOneKey)
+    defaults.set("Tulsa", forKey: ComparisonModel.teamTwoKey)
+
+    return ComparisonHeader(model: ComparisonModel(defaults: defaults), presentedPicker: .constant(nil))
+}
