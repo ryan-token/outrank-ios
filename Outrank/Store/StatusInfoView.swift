@@ -38,12 +38,16 @@ struct StatusInfoView: View {
             }
         case .revoked:
             if let revokedDate = transaction.revocationDate {
-                description = "The App Store refunded your subscription to \(product.displayName) on \(revokedDate.formatted(date: .abbreviated, time: .omitted))."
+                let date = revokedDate.formatted(date: .abbreviated, time: .omitted)
+                description = "The App Store refunded your subscription to \(product.displayName) on \(date)."
             }
         case .inGracePeriod:
             description = gracePeriodDescription(renewalInfo)
         case .inBillingRetryPeriod:
-            description = "The App Store could not confirm your billing information for \(product.displayName). Please verify your billing information to resume service."
+            description = """
+                The App Store could not confirm your billing information for \(product.displayName). \
+                Please verify your billing information to resume service.
+                """
         default:
             break
         }
@@ -57,7 +61,8 @@ struct StatusInfoView: View {
     private func gracePeriodDescription(_ renewalInfo: RenewalInfo) -> String {
         var description = "The App Store could not confirm your billing information for \(product.displayName)."
         if let untilDate = renewalInfo.gracePeriodExpirationDate {
-            description += " Please verify your billing information to continue service after \(untilDate.formatted(date: .abbreviated, time: .omitted))"
+            let date = untilDate.formatted(date: .abbreviated, time: .omitted)
+            description += " Please verify your billing information to continue service after \(date)."
         }
         return description
     }
@@ -65,7 +70,12 @@ struct StatusInfoView: View {
     private func renewalDescription(_ renewalInfo: RenewalInfo, expirationDate: Date) -> String {
         if let newProductID = renewalInfo.autoRenewPreference,
            let newProduct = store.subscriptions.first(where: { $0.id == newProductID }) {
-            return "\nYour subscription to \(newProduct.displayName) will begin when your current subscription expires on \(expirationDate.formatted(date: .abbreviated, time: .omitted))."
+            let date = expirationDate.formatted(date: .abbreviated, time: .omitted)
+            return """
+
+                Your subscription to \(newProduct.displayName) will begin when your current \
+                subscription expires on \(date).
+                """
         } else if renewalInfo.willAutoRenew {
             return "\nNext billing date: \(expirationDate.formatted(date: .abbreviated, time: .omitted))."
         }
@@ -83,9 +93,15 @@ struct StatusInfoView: View {
         case .billingError:
             return "Your subscription to \(product.displayName) was not renewed due to a billing error."
         case .didNotConsentToPriceIncrease:
-            return "Your subscription to \(product.displayName) was not renewed due to a price increase that you disapproved."
+            return """
+                Your subscription to \(product.displayName) was not renewed due to a price increase \
+                that you disapproved.
+                """
         case .productUnavailable:
-            return "Your subscription to \(product.displayName) was not renewed because the product is no longer available."
+            return """
+                Your subscription to \(product.displayName) was not renewed because the product is \
+                no longer available.
+                """
         default:
             return "Your subscription to \(product.displayName) was not renewed."
         }

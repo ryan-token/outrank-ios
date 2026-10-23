@@ -7,12 +7,8 @@
 
 import SwiftUI
 
-enum AppTab: Hashable {
-    case rankings
-    case compare
-    case settings
-}
-
+/// The selected tab for one window. Owned per scene, so two windows side by side on
+/// iPad or iPhone Duo's inner display can each show a different tab.
 @Observable
 final class TabController {
     var activeTab: AppTab = .rankings

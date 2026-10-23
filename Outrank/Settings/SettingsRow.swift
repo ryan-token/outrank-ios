@@ -14,22 +14,14 @@ struct SettingsRow: View {
     var showsExternalIndicator: Bool = false
 
     var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.title)
-                .foregroundStyle(iconColor)
-
-            Text(title)
-                .foregroundStyle(.primary)
-
-            Spacer()
-
+        LabeledContent {
             if showsExternalIndicator {
                 Image(systemName: "arrow.up.forward")
                     .foregroundStyle(.tertiary)
                     .font(.headline)
             }
+        } label: {
+            SettingsLabel(title: title, icon: icon, iconColor: iconColor)
         }
-        .contentShape(.rect)
     }
 }

@@ -32,12 +32,18 @@ nonisolated enum SortMethod: String, CaseIterable, Identifiable {
         }
     }
 
-    func sort(_ rankings: [String: Int]) -> [(key: String, value: Int)] {
+    /// Orders entries for display. Ties in ranking fall back to the entry's key so the
+    /// order is deterministic and rows don't shuffle between reloads.
+    func sorted(_ entries: [RankingEntry]) -> [RankingEntry] {
         switch self {
-        case .byStatAlphabetically: rankings.sorted { $0.key < $1.key }
-        case .byStatReverseAlphabetically: rankings.sorted { $0.key > $1.key }
-        case .byRankingAscending: rankings.sorted { $0.value < $1.value }
-        case .byRankingDescending: rankings.sorted { $0.value > $1.value }
+        case .byStatAlphabetically:
+            entries.sorted { $0.id < $1.id }
+        case .byStatReverseAlphabetically:
+            entries.sorted { $0.id > $1.id }
+        case .byRankingAscending:
+            entries.sorted { ($0.ranking, $0.id) < ($1.ranking, $1.id) }
+        case .byRankingDescending:
+            entries.sorted { ($0.ranking, $1.id) > ($1.ranking, $0.id) }
         }
     }
 }

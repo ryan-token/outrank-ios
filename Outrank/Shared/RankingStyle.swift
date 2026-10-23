@@ -11,9 +11,7 @@ import SwiftUI
 nonisolated enum RankingStyle {
     /// A ranking in the better half of the FBS field reads as good. Derived from
     /// the team list so it stays correct as programs join or leave FBS.
-    static var goodRankingCutoff: Int {
-        AllTeams.teams.count / 2
-    }
+    static let goodRankingCutoff = AllTeams.all.count / 2
 
     /// Green for the better half of the field, red for the worse half, and a
     /// neutral tint for teams with no ranking — an unranked team has not played
@@ -21,5 +19,20 @@ nonisolated enum RankingStyle {
     static func color(for ranking: Int) -> Color {
         if ranking == RankingsResponse.unranked { return .secondary }
         return ranking <= goodRankingCutoff ? .green : .red
+    }
+
+    /// Green when `ranking` beats `other`, red when it trails, yellow when they tie.
+    /// A team with no ranking in the stat has not lost the comparison, so it gets a
+    /// neutral tint rather than being colored as the worse of the two.
+    static func comparisonColor(for ranking: Int, comparedTo other: Int) -> Color {
+        if ranking == RankingsResponse.unranked {
+            .secondary
+        } else if ranking < other {
+            .green
+        } else if ranking > other {
+            .red
+        } else {
+            .yellow
+        }
     }
 }

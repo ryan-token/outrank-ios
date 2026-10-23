@@ -7,33 +7,36 @@
 
 import SwiftUI
 
+/// The two compared teams and their averages, each tappable to change it, with a swap
+/// control between them.
 struct ComparisonHeader: View {
-    let teamOne: String
-    let teamTwo: String
-    let onChooseTeamOne: () -> Void
-    let onChooseTeamTwo: () -> Void
-    let onSwap: () -> Void
+    let model: ComparisonModel
+    @Binding var presentedPicker: ComparisonSlot?
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack {
-            Button(teamOne, action: onChooseTeamOne)
-                .buttonStyle(GrowingButton())
-                .accessibilityLabel("\(teamOne), Change Team One")
+        // Chosen from the text size rather than measured, so the first layout pass on
+        // launch can't briefly pick the stacked arrangement. Each team gets half the
+        // width, so a long name wraps instead of crowding the swap button.
+        let isStacked = dynamicTypeSize.isAccessibilitySize
+        let layout = isStacked ? AnyLayout(VStackLayout()) : AnyLayout(HStackLayout(alignment: .top))
 
-            Spacer()
-
-            Button("Swap Teams", systemImage: "arrow.left.arrow.right.square", action: onSwap)
-                .labelStyle(.iconOnly)
-                .font(.title)
-                .foregroundStyle(.green)
-
-            Spacer()
-
-            Button(teamTwo, action: onChooseTeamTwo)
-                .buttonStyle(GrowingButton())
-                .accessibilityLabel("\(teamTwo), Change Team Two")
+        layout {
+            column(.teamOne, alignment: isStacked ? .center : .leading)
+            SwapTeamsButton(model: model)
+            column(.teamTwo, alignment: isStacked ? .center : .trailing)
         }
-        .padding(.top, 5)
-        .padding(.horizontal, 25)
+        .padding([.horizontal, .bottom])
+    }
+
+    private func column(_ slot: ComparisonSlot, alignment: HorizontalAlignment) -> ComparisonTeamColumn {
+        ComparisonTeamColumn(
+            team: model[team: slot],
+            average: slot == .teamOne ? model.teamOneAverage : model.teamTwoAverage,
+            slot: slot,
+            alignment: alignment,
+            presentedPicker: $presentedPicker
+        )
     }
 }

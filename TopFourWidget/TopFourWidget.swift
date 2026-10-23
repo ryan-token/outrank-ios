@@ -20,11 +20,3 @@ struct TopFourWidget: Widget {
         .supportedFamilies([.systemMedium])
     }
 }
-
-@main
-struct TeamRankingsBundle: WidgetBundle {
-    var body: some Widget {
-        TopFourWidget()
-        BottomFourWidget()
-    }
-}

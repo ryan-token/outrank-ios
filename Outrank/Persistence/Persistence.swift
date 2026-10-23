@@ -6,9 +6,12 @@
 //
 
 import CoreData
+import OSLog
 
 nonisolated final class PersistentContainer: NSPersistentCloudKitContainer, @unchecked Sendable {
     static let shared: PersistentContainer = .make(inMemory: false)
+
+    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "CoreData")
 
     @MainActor static let preview: PersistentContainer = {
         let container = PersistentContainer.make(inMemory: true)
@@ -60,7 +63,7 @@ nonisolated final class PersistentContainer: NSPersistentCloudKitContainer, @unc
     private func loadStores() {
         loadPersistentStores { _, error in
             if let error {
-                print("[CoreData] Failed to load persistent store: \(error)")
+                Self.logger.fault("Failed to load persistent store: \(error.localizedDescription)")
                 fatalError("Unresolved Core Data error: \(error)")
             }
         }
@@ -87,7 +90,8 @@ nonisolated final class PersistentContainer: NSPersistentCloudKitContainer, @unc
                 guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
                     as? NSPersistentCloudKitContainer.Event else { continue }
                 if let error = event.error {
-                    print("[CoreData] CloudKit \(event.type) failed: \(error)")
+                    let type = String(describing: event.type)
+                    Self.logger.error("CloudKit \(type, privacy: .public) failed: \(error.localizedDescription)")
                 }
             }
         }

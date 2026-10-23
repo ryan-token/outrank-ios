@@ -8,29 +8,29 @@
 import SwiftUI
 
 struct MainView: View {
-    @Environment(TabController.self) private var tabController
+    // Scene-level state rather than app-level, so each window keeps its own tab.
+    @State private var tabController = TabController()
 
     var body: some View {
-        @Bindable var tabController = tabController
-
         TabView(selection: $tabController.activeTab) {
-            Tab("Rankings", systemImage: "list.bullet.rectangle.portrait", value: AppTab.rankings) {
+            Tab("Rankings", systemImage: "list.bullet.rectangle.portrait", value: .rankings) {
                 RankingsView()
             }
 
-            Tab("Compare", systemImage: "eyeglasses", value: AppTab.compare) {
+            Tab("Compare", systemImage: "eyeglasses", value: .compare) {
                 ComparisonView()
             }
 
-            Tab("Settings", systemImage: "gear", value: AppTab.settings) {
+            Tab("Settings", systemImage: "gear", value: .settings) {
                 SettingsView()
             }
         }
+        .environment(tabController)
     }
 }
 
 #Preview {
     MainView()
-        .environment(TabController())
         .environment(Store())
+        .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

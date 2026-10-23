@@ -5,25 +5,13 @@
 //  Created by Ryan Token on 10/2/21.
 //
 
+import CoreData
+import OSLog
 import SwiftUI
 
+/// A sheet for choosing a team, with the user's favorites first. Writes the choice to
+/// `team`; whoever owns that binding decides how to store it.
 struct TeamPickerView: View {
-    enum TeamPickerTypes: String, Identifiable {
-        case rankings
-        case comparisonTeamOne
-        case comparisonTeamTwo
-
-        var id: String { rawValue }
-
-        var userDefaultsKey: String {
-            switch self {
-            case .rankings: "CurrentTeam"
-            case .comparisonTeamOne: "TeamOne"
-            case .comparisonTeamTwo: "TeamTwo"
-            }
-        }
-    }
-
     @Environment(\.managedObjectContext) private var moc
     @Environment(\.dismiss) private var dismiss
     @Environment(TabController.self) private var tabController
@@ -33,24 +21,18 @@ struct TeamPickerView: View {
 
     @Binding var team: String
 
-    let type: TeamPickerTypes
-    private let allTeams = AllTeams.teams
-
     @State private var chooseHapticTrigger = 0
+    @State private var isShowingRemoveError = false
 
-    private var uniqueFavorites: [Favorite] {
-        var seen = Set<String>()
-        return favorites.filter { seen.insert($0.team).inserted }
-    }
+    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "TeamPickerView")
 
     var body: some View {
         NavigationStack {
             List {
                 Section("Favorite Teams") {
-                    ForEach(uniqueFavorites) { favorite in
+                    ForEach(favorites.uniquedByTeam()) { favorite in
                         Button {
-                            chooseTeam(favorite.team)
-                            dismiss()
+                            choose(favorite.team)
                         } label: {
                             TeamPickerRow(team: favorite.team, isFavorite: true)
                         }
@@ -59,30 +41,17 @@ struct TeamPickerView: View {
                     .onDelete(perform: removeFavorites)
 
                     if favorites.isEmpty {
-                        Button {
-                            dismiss()
-                            tabController.open(.settings)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text("Choose favorites in")
-                                Label("Settings", systemImage: "gear")
-                                    .labelStyle(.titleAndIcon)
-                                Spacer()
-                            }
+                        Button("Choose favorites in Settings", systemImage: "gear", action: openFavoritesSettings)
                             .foregroundStyle(.secondary)
-                            .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
                     }
                 }
 
                 Section("All Teams") {
-                    ForEach(allTeams, id: \.self) { team in
+                    ForEach(AllTeams.all) { fbsTeam in
                         Button {
-                            chooseTeam(team)
-                            dismiss()
+                            choose(fbsTeam.name)
                         } label: {
-                            TeamPickerRow(team: team, isFavorite: false)
+                            TeamPickerRow(team: fbsTeam.name, isFavorite: false)
                         }
                         .buttonStyle(.plain)
                     }
@@ -90,34 +59,50 @@ struct TeamPickerView: View {
             }
             .navigationTitle("Choose Team")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done", action: dismiss.callAsFunction).bold()
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .close, action: dismiss.callAsFunction)
                 }
             }
             .sensoryFeedback(.success, trigger: chooseHapticTrigger)
+            .alert("Couldn't Remove Favorite", isPresented: $isShowingRemoveError) {
+            } message: {
+                Text("Please try again.")
+            }
         }
     }
 
-    private func chooseTeam(_ team: String) {
-        UserDefaults.standard.set(team, forKey: type.userDefaultsKey)
-        self.team = team
+    private func choose(_ selectedTeam: String) {
+        team = selectedTeam
         chooseHapticTrigger += 1
+        dismiss()
+    }
+
+    private func openFavoritesSettings() {
+        dismiss()
+        tabController.open(.settings)
     }
 
     private func removeFavorites(at offsets: IndexSet) {
         // Map row offsets to team names, then delete ALL favorites with that
         // team name. This cleans up any duplicate rows in a single swipe.
-        let teamsToRemove = offsets.map { uniqueFavorites[$0].team }
-        for team in teamsToRemove {
-            for favorite in favorites where favorite.team == team {
-                moc.delete(favorite)
-            }
+        let uniqueFavorites = favorites.uniquedByTeam()
+        let teamsToRemove = Set(offsets.map { uniqueFavorites[$0].team })
+        for favorite in favorites where teamsToRemove.contains(favorite.team) {
+            moc.delete(favorite)
         }
 
         do {
             try moc.saveIfNeeded()
         } catch {
-            print("[TeamPickerView] Failed to remove favorites: \(error)")
+            moc.rollback()
+            Self.logger.error("Failed to remove favorites: \(error.localizedDescription)")
+            isShowingRemoveError = true
         }
     }
+}
+
+#Preview {
+    TeamPickerView(team: .constant("Tulsa"))
+        .environment(TabController())
+        .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

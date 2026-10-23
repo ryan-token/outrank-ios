@@ -19,7 +19,10 @@ struct TipJarView: View {
             }
 
             Section {
-                Text("Outrank is free with no ads. If you find it useful, please consider supporting development by leaving a tip.")
+                Text("""
+                    Outrank is free with no ads. If you find it useful, please consider supporting \
+                    development by leaving a tip.
+                    """)
                     .foregroundStyle(.secondary)
             }
         }

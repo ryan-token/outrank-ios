@@ -15,56 +15,69 @@ struct SubscriptionsView: View {
     @State private var currentSubscription: Product?
     @State private var status: Product.SubscriptionInfo.Status?
     @State private var isShowingManageSubscriptions = false
+    @State private var isShowingRestoreError = false
     @State private var restoreErrorTrigger = 0
 
-    private let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "SubscriptionsView")
+    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "SubscriptionsView")
 
     var body: some View {
         List {
-            Group {
-                if let currentSubscription {
-                    Section("My Subscription") {
-                        ListSubscriptionOptionsView(product: currentSubscription, purchasingEnabled: false)
+            if let currentSubscription {
+                Section("My Subscription") {
+                    ListSubscriptionOptionsView(product: currentSubscription, purchasingEnabled: false)
 
-                        if let status {
-                            StatusInfoView(product: currentSubscription, status: status)
-                        }
+                    if let status {
+                        StatusInfoView(product: currentSubscription, status: status)
                     }
-                }
-
-                Section("Subscription Options") {
-                    ForEach(store.subscriptions) { subscription in
-                        ListSubscriptionOptionsView(product: subscription)
-                    }
-                }
-
-                Section {
-                    Text("Outrank is free with no ads. If you find it useful, please consider supporting development by tipping annually.")
-                        .foregroundStyle(.secondary)
                 }
             }
-            .task(id: store.purchasedIdentifiers) {
-                await updateSubscriptionStatus()
+
+            Section("Subscription Options") {
+                ForEach(store.subscriptions) { subscription in
+                    ListSubscriptionOptionsView(product: subscription)
+                }
+            }
+
+            Section {
+                Text("""
+                    Outrank is free with no ads. If you find it useful, please consider supporting \
+                    development by tipping annually.
+                    """)
+                    .foregroundStyle(.secondary)
             }
         }
-        .listStyle(.insetGrouped)
         .navigationTitle("Subscriptions")
+        // Attached to the list, not to a group of its sections, so it runs once rather
+        // than once per section.
+        .task(id: store.purchasedIdentifiers) {
+            await updateSubscriptionStatus()
+        }
         .manageSubscriptionsSheet(isPresented: $isShowingManageSubscriptions)
         .sensoryFeedback(.error, trigger: restoreErrorTrigger)
+        .alert("Couldn't Restore Purchases", isPresented: $isShowingRestoreError) {
+        } message: {
+            Text("Please check your connection and try again.")
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu("More", systemImage: "ellipsis.circle") {
-                    Button("Manage Subscription", systemImage: "creditcard") {
-                        isShowingManageSubscriptions = true
-                    }
-                    .disabled(currentSubscription == nil)
+                // A descriptive symbol rather than an ellipsis, which the system reserves
+                // for its own toolbar overflow menu.
+                Menu("Account", systemImage: "person.crop.circle") {
+                    Button("Manage Subscription", systemImage: "creditcard", action: showManageSubscriptions)
+                        .disabled(currentSubscription == nil)
 
-                    Button("Restore Purchases", systemImage: "arrow.clockwise") {
-                        Task { await restorePurchases() }
-                    }
+                    Button("Restore Purchases", systemImage: "arrow.clockwise", action: restore)
                 }
             }
         }
+    }
+
+    private func showManageSubscriptions() {
+        isShowingManageSubscriptions = true
+    }
+
+    private func restore() {
+        Task { await restorePurchases() }
     }
 
     private func updateSubscriptionStatus() async {
@@ -84,7 +97,9 @@ struct SubscriptionsView: View {
                 default:
                     let renewalInfo = try status.renewalInfo.payloadValue
 
-                    guard let newSubscription = store.subscriptions.first(where: { $0.id == renewalInfo.currentProductID }) else {
+                    guard let newSubscription = store.subscriptions.first(where: {
+                        $0.id == renewalInfo.currentProductID
+                    }) else {
                         continue
                     }
 
@@ -107,7 +122,7 @@ struct SubscriptionsView: View {
             status = highestStatus
             currentSubscription = highestProduct
         } catch {
-            logger.error("Could not update subscription status: \(error.localizedDescription)")
+            Self.logger.error("Could not update subscription status: \(error.localizedDescription)")
         }
     }
 
@@ -116,7 +131,8 @@ struct SubscriptionsView: View {
             try await store.restorePurchases()
         } catch {
             restoreErrorTrigger += 1
-            logger.error("Restore purchases failed: \(error.localizedDescription)")
+            isShowingRestoreError = true
+            Self.logger.error("Restore purchases failed: \(error.localizedDescription)")
         }
     }
 }

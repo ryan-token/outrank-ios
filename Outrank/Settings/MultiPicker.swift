@@ -5,46 +5,30 @@
 //  Created by Ryan Token on 10/5/21.
 //
 
+import CoreData
 import SwiftUI
 
+/// The Settings row that opens the favorite-teams editor, summarizing the current picks.
 struct MultiPicker: View {
     @FetchRequest(fetchRequest: Favorite.allFavoritesFetchRequest, animation: .default)
     private var favorites: FetchedResults<Favorite>
 
+    /// The single favorite's name, or how many favorites there are.
+    private var summary: LocalizedStringResource {
+        let uniqueFavorites = favorites.uniquedByTeam()
+        if uniqueFavorites.count == 1, let favorite = uniqueFavorites.first {
+            return "\(favorite.team)"
+        }
+        return "^[\(uniqueFavorites.count) Team](inflect: true)"
+    }
+
     var body: some View {
         NavigationLink(value: SettingsDetail.favorites) {
-            HStack {
-                FavoriteTeamsLabel()
-                Spacer()
+            LabeledContent {
                 Text(summary)
-                    .foregroundStyle(.secondary)
+            } label: {
+                SettingsLabel(title: "Favorites", icon: "star.square.fill", iconColor: .yellow)
             }
-        }
-    }
-
-    private var uniqueTeams: [String] {
-        var seen = Set<String>()
-        return favorites.compactMap { seen.insert($0.team).inserted ? $0.team : nil }
-    }
-
-    private var summary: String {
-        let teams = uniqueTeams
-        if teams.count == 1 {
-            return teams[0]
-        } else {
-            return "\(teams.count) Teams"
-        }
-    }
-}
-
-struct FavoriteTeamsLabel: View {
-    var body: some View {
-        Label {
-            Text("Favorites")
-        } icon: {
-            Image(systemName: "star.square.fill")
-                .font(.title)
-                .foregroundStyle(.yellow)
         }
     }
 }

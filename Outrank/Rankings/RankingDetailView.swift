@@ -7,34 +7,27 @@
 
 import SwiftUI
 
+/// Every team's ranking in one stat, with the selected team highlighted.
 struct RankingDetailView: View {
-    @State private var statRankings: [String: Int] = [:]
-    @State private var apiError = false
-    @State private var reloadAttempt = 0
-
     let team: String
     let stat: String
     let ranking: Int
 
-    private var sortedRankings: [(key: String, value: Int)] {
-        statRankings.sorted { $0.value < $1.value }
-    }
+    @State private var model = StatRankingsModel()
+    @State private var reloadAttempt = 0
 
     private var humanReadableStat: String {
-        Conversions.getHumanReadableStat(for: stat)
-    }
-
-    private var humanReadableRanking: String {
-        Conversions.getHumanReadableRanking(for: ranking)
+        Conversions.humanReadableStat(for: stat)
     }
 
     var body: some View {
         List {
             Section {
-                HStack {
-                    Text("\(team)'s Ranking:")
-                    Text(humanReadableRanking)
+                LabeledContent {
+                    Text(Conversions.humanReadableRanking(for: ranking))
                         .foregroundStyle(RankingStyle.color(for: ranking))
+                } label: {
+                    Text("\(team)'s Ranking")
                 }
                 .font(.headline)
             }
@@ -51,89 +44,27 @@ struct RankingDetailView: View {
                 Text("All Rankings For This Stat:")
                     .font(.headline)
 
-                ForEach(sortedRankings, id: \.key) { item in
-                    let teamName = AllTeams.name(forAPIKey: item.key)
-
-                    OtherTeamRankingRow(
-                        team: teamName,
-                        ranking: item.value,
-                        isCurrentTeam: team == teamName
-                    )
+                ForEach(model.entries) { entry in
+                    TeamRankingRow(title: entry.title, ranking: entry.ranking, isCurrentTeam: entry.title == team)
                 }
 
-                if apiError {
-                    RankingsLoadFailed(stat: humanReadableStat) {
-                        reloadAttempt += 1
-                    }
+                if model.loadFailed {
+                    RankingsLoadFailedRow(stat: humanReadableStat, reloadAttempt: $reloadAttempt)
                 }
             }
         }
-        .animation(.default, value: statRankings)
+        .animation(.default, value: model.revision)
+        .navigationTitle(humanReadableStat)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text(humanReadableStat).font(.headline)
-            }
-        }
         .refreshable {
-            await loadRankings()
+            await model.load(stat: stat)
         }
-        // Keyed on the retry counter as well as the stat, so tapping "Try Again" restarts
-        // a task SwiftUI still owns and cancels, rather than an unstructured one.
-        .task(id: ReloadKey(stat: stat, attempt: reloadAttempt)) {
-            await loadRankings()
+        // Keyed on the retry counter, so tapping "Try Again" restarts a task SwiftUI still
+        // owns and cancels, rather than an unstructured one. The stat itself never changes
+        // for this view: the detail column gives each stat its own identity with `.id`.
+        .task(id: reloadAttempt) {
+            await model.load(stat: stat)
         }
-    }
-
-    private struct ReloadKey: Hashable {
-        let stat: String
-        let attempt: Int
-    }
-
-    private func loadRankings() async {
-        do {
-            let fetched = try await StatFetcher.getStatRankingsFor(stat: stat)
-            guard !Task.isCancelled else { return }
-            statRankings = fetched.rankings
-            apiError = false
-        } catch is CancellationError {
-            // The stat changed before this fetch completed; a newer task will populate rankings.
-        } catch {
-            guard !Task.isCancelled else { return }
-            print("Request failed with error: \(error)")
-            apiError = true
-        }
-    }
-}
-
-private struct RankingsLoadFailed: View {
-    let stat: String
-    let retry: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            Text("😕 Error loading rankings for \(stat).")
-                .foregroundStyle(.secondary)
-
-            Button("Try Again", action: retry)
-                .buttonStyle(.bordered)
-        }
-    }
-}
-
-private struct OtherTeamRankingRow: View {
-    let team: String
-    let ranking: Int
-    let isCurrentTeam: Bool
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(team)
-            Spacer()
-            Text(Conversions.getHumanReadableRanking(for: ranking))
-                .foregroundStyle(RankingStyle.color(for: ranking))
-        }
-        .font(isCurrentTeam ? .headline : .body)
     }
 }
 

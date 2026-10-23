@@ -6,51 +6,36 @@
 //
 
 import SwiftUI
-
-enum WidgetType {
-    case topFour
-    case bottomFour
-
-    func title(for team: String) -> String {
-        switch self {
-        case .topFour: "\(team)'s Top Four"
-        case .bottomFour: "\(team)'s Bottom Four"
-        }
-    }
-
-    var rankingColor: Color {
-        switch self {
-        case .topFour: .green
-        case .bottomFour: .red
-        }
-    }
-}
+import WidgetKit
 
 struct TopOrBottomFourView: View {
     let type: WidgetType
     let team: String
     let rankings: [String: Int]
 
-    private var sortedFour: [(key: String, value: Int)] {
+    /// The team's four best or worst ranked stats, ignoring stats it isn't ranked in.
+    private var rankedFour: [(key: String, value: Int)] {
         let ranked = rankings.filter { $0.value != RankingsResponse.unranked }
 
         let sorted: [(key: String, value: Int)] = switch type {
-        case .topFour: ranked.sorted { $0.value < $1.value }
-        case .bottomFour: ranked.sorted { $0.value > $1.value }
+        case .topFour: ranked.sorted { ($0.value, $0.key) < ($1.value, $1.key) }
+        case .bottomFour: ranked.sorted { ($0.value, $1.key) > ($1.value, $0.key) }
         }
 
         return Array(sorted.prefix(4))
     }
 
     var body: some View {
-        VStack(spacing: 6) {
+        let rankedFour = rankedFour
+
+        VStack {
             Text(type.title(for: team))
                 .foregroundStyle(.secondary)
 
-            if sortedFour.isEmpty {
+            if rankedFour.isEmpty {
                 Text("No Data")
             } else {
-                ForEach(sortedFour, id: \.key) { item in
+                ForEach(rankedFour, id: \.key) { item in
                     WidgetRankingRow(
                         stat: item.key,
                         ranking: item.value,
@@ -66,24 +51,11 @@ struct TopOrBottomFourView: View {
     }
 }
 
-private struct WidgetRankingRow: View {
-    let stat: String
-    let ranking: Int
-    let rankingColor: Color
-
-    var body: some View {
-        HStack {
-            Text("\(Conversions.getHumanReadableStat(for: stat)):")
-            Spacer()
-            Text(Conversions.getHumanReadableRanking(for: ranking))
-                .foregroundStyle(rankingColor)
-        }
-    }
-}
-
-#Preview {
-    TopOrBottomFourView(
-        type: .topFour,
+#Preview(as: .systemMedium) {
+    TopFourWidget()
+} timeline: {
+    TeamRankingsEntry(
+        date: .now,
         team: "Tulsa",
         rankings: ["ScoringOffense": 3, "TotalOffense": 7, "RushingOffense": 11, "TurnoverMargin": 14]
     )

@@ -5,21 +5,13 @@
 //  Created by Ryan Token on 9/4/26.
 //
 
+import OSLog
 import WidgetKit
-
-nonisolated struct TeamRankingsEntry: TimelineEntry {
-    let date: Date
-
-    /// Carried on the entry rather than read by the view, so the name on screen always
-    /// describes the rankings alongside it — even if the user picks a different team
-    /// before WidgetKit asks for a new timeline.
-    let team: String
-
-    let rankings: [String: Int]
-}
 
 /// Shared by the top-four and bottom-four widgets; they differ only in how they sort.
 nonisolated struct TeamRankingsProvider: TimelineProvider {
+    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "TeamRankingsProvider")
+
     func placeholder(in context: Context) -> TeamRankingsEntry {
         TeamRankingsEntry(date: .now, team: Self.selectedTeam, rankings: Self.sampleRankings)
     }
@@ -40,19 +32,18 @@ nonisolated struct TeamRankingsProvider: TimelineProvider {
         let team = Self.selectedTeam
 
         do {
-            let response = try await TeamFetcher.getTeamRankingsFor(team: team)
+            let response = try await RankingsAPI.teamRankings(for: team)
             let entry = TeamRankingsEntry(date: .now, team: team, rankings: response.rankings)
             return Timeline(entries: [entry], policy: .after(Self.nextUpdateDate()))
         } catch {
-            print("Error fetching team rankings: \(error)")
+            Self.logger.error("Failed to fetch rankings for \(team, privacy: .public): \(error.localizedDescription)")
             let entry = TeamRankingsEntry(date: .now, team: team, rankings: [:])
             return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(3600)))
         }
     }
 
     private static var selectedTeam: String {
-        UserDefaults(suiteName: AppGroup.groupId.rawValue)?
-            .string(forKey: "WidgetTeam") ?? "Air Force"
+        AppGroup.defaults?.string(forKey: AppGroup.widgetTeamKey) ?? AppGroup.defaultWidgetTeam
     }
 
     /// Enough spread that both the top-four and bottom-four widgets look right in the gallery.
@@ -67,12 +58,13 @@ nonisolated struct TeamRankingsProvider: TimelineProvider {
         "RedZoneDefense": 131
     ]
 
-    /// The scraper refreshes the rankings each morning, so ask again after it has run.
+    /// The scraper refreshes the rankings each morning, so ask again at the next 10am,
+    /// after it has run.
     private static func nextUpdateDate() -> Date {
-        let calendar = Calendar.current
-        var components = calendar.dateComponents([.year, .month, .day], from: .now)
-        components.day = (components.day ?? 0) + 1
-        components.hour = 10
-        return calendar.date(from: components) ?? .now.addingTimeInterval(3600)
+        Calendar.current.nextDate(
+            after: .now,
+            matching: DateComponents(hour: 10, minute: 0, second: 0),
+            matchingPolicy: .nextTime
+        ) ?? .now.addingTimeInterval(3600)
     }
 }

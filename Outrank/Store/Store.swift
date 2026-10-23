@@ -12,29 +12,13 @@ import StoreKit
 typealias Transaction = StoreKit.Transaction
 typealias RenewalInfo = StoreKit.Product.SubscriptionInfo.RenewalInfo
 
-nonisolated enum StoreError: Error {
-    case failedVerification
-}
-
-nonisolated enum SubscriptionTier: Int, Comparable {
-    case none = 0
-    case small = 1
-    case medium = 2
-    case large = 3
-    case giant = 4
-
-    static func < (lhs: Self, rhs: Self) -> Bool {
-        lhs.rawValue < rhs.rawValue
-    }
-}
-
 @Observable
 final class Store {
     private(set) var tips: [Product] = []
     private(set) var subscriptions: [Product] = []
     private(set) var purchasedIdentifiers: Set<String> = []
 
-    private var updateListenerTask: Task<Void, Never>?
+    @ObservationIgnored private var updateListenerTask: Task<Void, Never>?
 
     private let productIdToEmoji: [String: String]
     private let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "Store")
@@ -86,7 +70,8 @@ final class Store {
                 case .autoRenewable:
                     newSubscriptions.append(product)
                 default:
-                    logger.notice("Ignoring product \(product.id, privacy: .public) of type \(String(describing: product.type), privacy: .public)")
+                    let type = String(describing: product.type)
+                    logger.notice("Ignoring product \(product.id, privacy: .public) of type \(type, privacy: .public)")
                 }
             }
 
@@ -133,22 +118,6 @@ final class Store {
         await refreshPurchasedIdentifiers()
     }
 
-    func isPurchased(_ productIdentifier: String) async throws -> Bool {
-        // For subscriptions, a user can upgrade in the middle of their subscription period. The lower service
-        // tier will then have the `isUpgraded` flag set and there will be a new transaction for the higher service
-        // tier. Ignore the lower service tier transactions which have been upgraded.
-        guard let result = await Transaction.latest(for: productIdentifier) else {
-            return false
-        }
-
-        let transaction = try result.payloadValue
-        return transaction.revocationDate == nil && !transaction.isUpgraded
-    }
-
-    func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
-        try result.payloadValue
-    }
-
     func updatePurchasedIdentifiers(_ transaction: Transaction) {
         if transaction.revocationDate == nil {
             purchasedIdentifiers.insert(transaction.productID)
@@ -161,7 +130,7 @@ final class Store {
         productIdToEmoji[productId] ?? ""
     }
 
-    func sortByPrice(_ products: [Product]) -> [Product] {
+    private func sortByPrice(_ products: [Product]) -> [Product] {
         products.sorted { $0.price < $1.price }
     }
 

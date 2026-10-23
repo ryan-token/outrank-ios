@@ -5,22 +5,22 @@
 //  Created by Ryan Token on 10/17/21.
 //
 
-import SwiftUI
 import StoreKit
+import SwiftUI
 
 struct ProductDetail: View {
     let product: Product
 
     var body: some View {
-        if product.type == .autoRenewable {
-            VStack(alignment: .leading) {
-                Text(product.displayName).bold()
-                Text(product.description)
+        VStack(alignment: .leading) {
+            // Subscriptions are told apart by name; a tip's description says it all.
+            if product.type == .autoRenewable {
+                Text(product.displayName)
+                    .bold()
             }
-            .accessibilityLabel(product.description)
-        } else {
+
             Text(product.description)
-                .frame(alignment: .leading)
         }
+        .accessibilityElement(children: .combine)
     }
 }

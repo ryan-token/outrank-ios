@@ -9,8 +9,8 @@ import Foundation
 
 /// The FBS field, and the one place in the app that team names live.
 ///
-/// Adding or removing a program is a single edit here — the picker list and the
-/// API-key lookup are both derived from `all`.
+/// Adding or removing a program is a single edit here — the pickers and the API-key
+/// lookup are both derived from `all`.
 nonisolated enum AllTeams {
     /// Every FBS program, in the order the pickers show them.
     static let all: [FBSTeam] = [
@@ -153,9 +153,6 @@ nonisolated enum AllTeams {
         FBSTeam(name: "Wisconsin", apiKey: "Wisconsin"),
         FBSTeam(name: "Wyoming", apiKey: "Wyoming")
     ]
-
-    /// Team names, for pickers and lists.
-    static let teams: [String] = all.map(\.name)
 
     private static let namesByAPIKey: [String: String] = Dictionary(
         all.lazy.map { ($0.apiKey, $0.name) },
