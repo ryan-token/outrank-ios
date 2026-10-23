@@ -18,7 +18,7 @@ struct SubscriptionsView: View {
     @State private var isShowingRestoreError = false
     @State private var restoreErrorTrigger = 0
 
-    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "SubscriptionsView")
+    private static let logger = Logger(category: "SubscriptionsView")
 
     var body: some View {
         List {
@@ -47,8 +47,6 @@ struct SubscriptionsView: View {
             }
         }
         .navigationTitle("Subscriptions")
-        // Attached to the list, not to a group of its sections, so it runs once rather
-        // than once per section.
         .task(id: store.purchasedIdentifiers) {
             await updateSubscriptionStatus()
         }
@@ -122,17 +120,19 @@ struct SubscriptionsView: View {
             status = highestStatus
             currentSubscription = highestProduct
         } catch {
-            Self.logger.error("Could not update subscription status: \(error.localizedDescription)")
+            Self.logger.error("Could not update subscription status: \(String(describing: error))")
         }
     }
 
     private func restorePurchases() async {
         do {
             try await store.restorePurchases()
+        } catch StoreKitError.userCancelled {
+            // Dismissing the Apple Account sign-in isn't a failure worth an alert.
         } catch {
             restoreErrorTrigger += 1
             isShowingRestoreError = true
-            Self.logger.error("Restore purchases failed: \(error.localizedDescription)")
+            Self.logger.error("Restore purchases failed: \(String(describing: error))")
         }
     }
 }

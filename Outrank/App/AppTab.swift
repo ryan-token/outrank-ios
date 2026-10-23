@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum AppTab: Hashable {
+enum AppTab: String {
     case rankings
     case compare
     case settings

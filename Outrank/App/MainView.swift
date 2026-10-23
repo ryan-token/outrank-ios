@@ -8,11 +8,13 @@
 import SwiftUI
 
 struct MainView: View {
-    // Scene-level state rather than app-level, so each window keeps its own tab.
-    @State private var tabController = TabController()
+    // Scene storage, so each window keeps its own place and gets it back when the
+    // system discards and restores the scene.
+    @SceneStorage("ActiveTab") private var activeTab = AppTab.rankings
+    @SceneStorage("SettingsDetail") private var settingsDetail: SettingsDetail?
 
     var body: some View {
-        TabView(selection: $tabController.activeTab) {
+        TabView(selection: $activeTab) {
             Tab("Rankings", systemImage: "list.bullet.rectangle.portrait", value: .rankings) {
                 RankingsView()
             }
@@ -22,10 +24,15 @@ struct MainView: View {
             }
 
             Tab("Settings", systemImage: "gear", value: .settings) {
-                SettingsView()
+                SettingsView(selectedDetail: $settingsDetail)
             }
         }
-        .environment(tabController)
+        .environment(\.openSettings, OpenSettingsAction(handler: openSettings))
+    }
+
+    private func openSettings(_ detail: SettingsDetail) {
+        activeTab = .settings
+        settingsDetail = detail
     }
 }
 

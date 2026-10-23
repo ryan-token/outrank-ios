@@ -14,7 +14,7 @@ import SwiftUI
 struct TeamPickerView: View {
     @Environment(\.managedObjectContext) private var moc
     @Environment(\.dismiss) private var dismiss
-    @Environment(TabController.self) private var tabController
+    @Environment(\.openSettings) private var openSettings
 
     @FetchRequest(fetchRequest: Favorite.allFavoritesFetchRequest, animation: .default)
     private var favorites: FetchedResults<Favorite>
@@ -24,7 +24,7 @@ struct TeamPickerView: View {
     @State private var chooseHapticTrigger = 0
     @State private var isShowingRemoveError = false
 
-    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "TeamPickerView")
+    private static let logger = Logger(category: "TeamPickerView")
 
     var body: some View {
         NavigationStack {
@@ -79,7 +79,7 @@ struct TeamPickerView: View {
 
     private func openFavoritesSettings() {
         dismiss()
-        tabController.open(.settings)
+        openSettings(.favorites)
     }
 
     private func removeFavorites(at offsets: IndexSet) {
@@ -95,7 +95,7 @@ struct TeamPickerView: View {
             try moc.saveIfNeeded()
         } catch {
             moc.rollback()
-            Self.logger.error("Failed to remove favorites: \(error.localizedDescription)")
+            Self.logger.error("Failed to remove favorites: \(String(describing: error))")
             isShowingRemoveError = true
         }
     }
@@ -103,6 +103,5 @@ struct TeamPickerView: View {
 
 #Preview {
     TeamPickerView(team: .constant("Tulsa"))
-        .environment(TabController())
         .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

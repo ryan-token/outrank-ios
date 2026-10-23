@@ -20,7 +20,6 @@ struct TeamRankingsModelTests {
     }
 
     @Test func changingTeamDropsThePreviousTeamsRankings() async {
-        let rankings = rankings
         let model = TeamRankingsModel(defaults: makeIsolatedDefaults()) { _ in RankingsResponse(rankings: rankings) }
         await model.load()
 
@@ -31,7 +30,6 @@ struct TeamRankingsModelTests {
     }
 
     @Test func loadSortsRankingsWithReadableTitles() async {
-        let rankings = rankings
         var requestedTeams: [String] = []
         let model = TeamRankingsModel(defaults: makeIsolatedDefaults()) { team in
             requestedTeams.append(team)
@@ -50,7 +48,6 @@ struct TeamRankingsModelTests {
     }
 
     @Test func changingTheSortOrderResortsAndBumpsTheRevision() async {
-        let rankings = rankings
         let model = TeamRankingsModel(defaults: makeIsolatedDefaults()) { _ in RankingsResponse(rankings: rankings) }
         await model.load()
         let revision = model.revision
@@ -62,7 +59,6 @@ struct TeamRankingsModelTests {
     }
 
     @Test func failedLoadIsReportedAndKeepsPreviousRankings() async {
-        let rankings = rankings
         var shouldFail = false
         let model = TeamRankingsModel(defaults: makeIsolatedDefaults()) { _ in
             if shouldFail { throw StubError() }
@@ -91,5 +87,18 @@ struct TeamRankingsModelTests {
 
         #expect(!loaded)
         #expect(model.sortedRankings.isEmpty)
+    }
+
+    @Test func cancelledLoadIsNotReportedAsAFailure() async {
+        let model = TeamRankingsModel(defaults: makeIsolatedDefaults()) { _ in
+            // SwiftUI cancels the task when the view disappears or the team changes.
+            withUnsafeCurrentTask { $0?.cancel() }
+            throw CancellationError()
+        }
+
+        let loaded = await Task { await model.load() }.value
+
+        #expect(!loaded)
+        #expect(!model.loadFailed)
     }
 }

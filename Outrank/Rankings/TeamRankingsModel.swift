@@ -44,7 +44,7 @@ final class TeamRankingsModel {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let fetch: (String) async throws -> RankingsResponse
 
-    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "TeamRankingsModel")
+    private static let logger = Logger(category: "TeamRankingsModel")
 
     init(
         defaults: UserDefaults = .standard,
@@ -78,7 +78,7 @@ final class TeamRankingsModel {
         } catch {
             guard !Task.isCancelled, requestedTeam == team else { return false }
             Self.logger.error(
-                "Failed to load rankings for \(requestedTeam, privacy: .public): \(error.localizedDescription)"
+                "Failed to load rankings for \(requestedTeam, privacy: .public): \(String(describing: error))"
             )
             loadFailed = true
             return false

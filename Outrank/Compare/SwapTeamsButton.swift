@@ -21,7 +21,7 @@ struct SwapTeamsButton: View {
             // The symbol alone is smaller than the 44-point minimum tap target.
             .frame(minWidth: minimumTapSize, minHeight: minimumTapSize)
             .contentShape(.rect)
-            .sensoryFeedback(.warning, trigger: swapCount)
+            .sensoryFeedback(.selection, trigger: swapCount)
     }
 
     private func swap() {

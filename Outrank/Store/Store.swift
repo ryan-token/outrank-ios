@@ -21,7 +21,7 @@ final class Store {
     @ObservationIgnored private var updateListenerTask: Task<Void, Never>?
 
     private let productIdToEmoji: [String: String]
-    private let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "Store")
+    private let logger = Logger(category: "Store")
 
     init() {
         if let url = Bundle.main.url(forResource: "Products", withExtension: "plist"),
@@ -50,7 +50,7 @@ final class Store {
                     updatePurchasedIdentifiers(transaction)
                     await transaction.finish()
                 } catch {
-                    logger.error("Transaction failed verification: \(error.localizedDescription)")
+                    logger.error("Transaction failed verification: \(String(describing: error))")
                 }
             }
         }
@@ -78,7 +78,7 @@ final class Store {
             tips = sortByPrice(newTips)
             subscriptions = sortByPrice(newSubscriptions)
         } catch {
-            logger.error("Failed product request: \(error.localizedDescription)")
+            logger.error("Failed product request: \(String(describing: error))")
         }
     }
 

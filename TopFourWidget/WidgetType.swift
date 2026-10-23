@@ -18,6 +18,13 @@ enum WidgetType {
         }
     }
 
+    var sortMethod: SortMethod {
+        switch self {
+        case .topFour: .byRankingAscending
+        case .bottomFour: .byRankingDescending
+        }
+    }
+
     var rankingColor: Color {
         switch self {
         case .topFour: .green

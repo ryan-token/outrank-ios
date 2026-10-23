@@ -9,7 +9,7 @@ import CoreData
 import OSLog
 
 extension Favorite {
-    nonisolated private static let dedupLogger = Logger(subsystem: "com.ryantoken.Outrank", category: "FavoriteDedup")
+    nonisolated private static let dedupLogger = Logger(category: "FavoriteDedup")
 
     /// Removes duplicate `Favorite` rows that share the same team name.
     ///
@@ -42,7 +42,7 @@ extension Favorite {
 
                 try context.saveIfNeeded()
             } catch {
-                dedupLogger.error("Dedup failed: \(error.localizedDescription)")
+                dedupLogger.error("Dedup failed: \(String(describing: error))")
             }
         }
     }

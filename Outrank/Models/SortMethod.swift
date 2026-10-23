@@ -33,7 +33,8 @@ nonisolated enum SortMethod: String, CaseIterable, Identifiable {
     }
 
     /// Orders entries for display. Ties in ranking fall back to the entry's key so the
-    /// order is deterministic and rows don't shuffle between reloads.
+    /// order is deterministic and rows don't shuffle between reloads. Unranked entries
+    /// go last in both ranking orders.
     func sorted(_ entries: [RankingEntry]) -> [RankingEntry] {
         switch self {
         case .byStatAlphabetically:
@@ -43,7 +44,12 @@ nonisolated enum SortMethod: String, CaseIterable, Identifiable {
         case .byRankingAscending:
             entries.sorted { ($0.ranking, $0.id) < ($1.ranking, $1.id) }
         case .byRankingDescending:
-            entries.sorted { ($0.ranking, $1.id) > ($1.ranking, $0.id) }
+            entries.sorted { (Self.worstFirstKey($0), $1.id) > (Self.worstFirstKey($1), $0.id) }
         }
+    }
+
+    /// `unranked` is the largest value, so worst-first ordering would put it at the top.
+    private static func worstFirstKey(_ entry: RankingEntry) -> Int {
+        entry.ranking == RankingsResponse.unranked ? Int.min : entry.ranking
     }
 }

@@ -23,13 +23,12 @@ struct RankingDetailView: View {
     var body: some View {
         List {
             Section {
-                LabeledContent {
-                    Text(Conversions.humanReadableRanking(for: ranking))
-                        .foregroundStyle(RankingStyle.color(for: ranking))
-                } label: {
-                    Text("\(team)'s Ranking")
-                }
-                .font(.headline)
+                RankingRow(
+                    title: String(localized: "\(team)'s Ranking"),
+                    ranking: ranking,
+                    titleFont: .headline,
+                    rankingFont: .headline
+                )
             }
 
             Section {
@@ -45,7 +44,13 @@ struct RankingDetailView: View {
                     .font(.headline)
 
                 ForEach(model.entries) { entry in
-                    TeamRankingRow(title: entry.title, ranking: entry.ranking, isCurrentTeam: entry.title == team)
+                    let isCurrentTeam = entry.title == team
+                    RankingRow(
+                        title: entry.title,
+                        ranking: entry.ranking,
+                        titleFont: isCurrentTeam ? .headline : .body,
+                        rankingFont: isCurrentTeam ? .headline : .body
+                    )
                 }
 
                 if model.loadFailed {

@@ -16,6 +16,8 @@ struct WelcomeView: View {
         } description: {
             Text(type.prompt)
         }
+        // Matches the detail screens' grouped lists, which SwiftUI has no style for.
+        .background(Color(uiColor: .systemGroupedBackground))
     }
 }
 

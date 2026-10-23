@@ -19,7 +19,7 @@ final class StatRankingsModel {
 
     @ObservationIgnored private let fetch: (String) async throws -> RankingsResponse
 
-    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "StatRankingsModel")
+    private static let logger = Logger(category: "StatRankingsModel")
 
     init(fetch: @escaping (String) async throws -> RankingsResponse = RankingsAPI.statRankings(for:)) {
         self.fetch = fetch
@@ -37,7 +37,7 @@ final class StatRankingsModel {
             revision += 1
         } catch {
             guard !Task.isCancelled else { return }
-            Self.logger.error("Failed to load rankings for \(stat, privacy: .public): \(error.localizedDescription)")
+            Self.logger.error("Failed to load rankings for \(stat, privacy: .public): \(String(describing: error))")
             loadFailed = true
         }
     }

@@ -29,9 +29,9 @@ struct SortMethodTests {
         #expect(ids == ["BlockedKicks", "TotalDefense", "RushingOffense", "FumblesLost"])
     }
 
-    @Test func worstToBestBreaksTiesAlphabetically() {
+    @Test func worstToBestBreaksTiesAlphabeticallyAndLeavesUnrankedLast() {
         let ids = SortMethod.byRankingDescending.sorted(entries).map(\.id)
-        #expect(ids == ["FumblesLost", "RushingOffense", "BlockedKicks", "TotalDefense"])
+        #expect(ids == ["RushingOffense", "BlockedKicks", "TotalDefense", "FumblesLost"])
     }
 
     @Test func sectionLabelScopesRankingSortsToTheTeam() {

@@ -20,7 +20,7 @@ struct RankingsSidebar: View {
             Section("Sorted by \(model.sortMethod.sectionLabel())") {
                 ForEach(model.sortedRankings) { entry in
                     NavigationLink(value: entry.id) {
-                        RankingRow(title: entry.title, ranking: entry.ranking)
+                        RankingRow(title: entry.title, ranking: entry.ranking, titleFont: .headline)
                     }
                 }
 

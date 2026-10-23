@@ -9,27 +9,34 @@ import SwiftUI
 
 struct ComparisonRow: View {
     let title: String
+    let teamOne: String
     let teamOneRanking: Int
+    let teamTwo: String
     let teamTwoRanking: Int
 
     var body: some View {
+        let teamOneText = Conversions.humanReadableRanking(for: teamOneRanking)
+        let teamTwoText = Conversions.humanReadableRanking(for: teamTwoRanking)
+
         VStack {
             Text(title)
                 .font(.headline)
                 .multilineTextAlignment(.center)
 
             HStack {
-                Text(Conversions.humanReadableRanking(for: teamOneRanking))
+                Text(teamOneText)
                     .foregroundStyle(RankingStyle.comparisonColor(for: teamOneRanking, comparedTo: teamTwoRanking))
 
                 Spacer()
 
-                Text(Conversions.humanReadableRanking(for: teamTwoRanking))
+                Text(teamTwoText)
                     .foregroundStyle(RankingStyle.comparisonColor(for: teamTwoRanking, comparedTo: teamOneRanking))
             }
             .padding(.horizontal)
         }
-        // Read as one element: "Scoring Offense, 3rd, 50th".
-        .accessibilityElement(children: .combine)
+        // Names each team, since only position and color tell the two rankings apart:
+        // "Scoring Offense: Tulsa 3rd, SMU 50th".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title): \(teamOne) \(teamOneText), \(teamTwo) \(teamTwoText)")
     }
 }

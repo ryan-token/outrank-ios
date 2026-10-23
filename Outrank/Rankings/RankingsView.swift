@@ -11,9 +11,10 @@ import SwiftUI
 struct RankingsView: View {
     @Environment(\.requestReview) private var requestReview
     @AppStorage("AppUsedCount") private var appUsedCount = 0
+    @AppStorage("ReviewRequestedVersion") private var reviewRequestedVersion = ""
 
     @State private var model = TeamRankingsModel()
-    @State private var selectedStat: String?
+    @SceneStorage("SelectedStat") private var selectedStat: String?
     @State private var isShowingTeamPicker = false
     @State private var isShowingInfoSheet = false
 
@@ -48,14 +49,17 @@ struct RankingsView: View {
     }
 
     private func refreshRankings() async {
-        if await model.load(), appUsedCount > 5 {
-            requestReview()
-        }
+        guard await model.load(), appUsedCount > 5 else { return }
+
+        // Ask at most once per version; the system also limits how often the prompt shows.
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        guard version != reviewRequestedVersion else { return }
+        reviewRequestedVersion = version
+        requestReview()
     }
 }
 
 #Preview {
     RankingsView()
-        .environment(TabController())
         .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

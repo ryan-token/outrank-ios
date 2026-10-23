@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @State private var selectedDetail: SettingsDetail?
+    /// Owned by the window, so other screens can open a settings page directly.
+    @Binding var selectedDetail: SettingsDetail?
 
     var body: some View {
         // One split view at every size: it collapses to a stack in compact widths and
@@ -22,8 +23,9 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView()
-        .environment(TabController())
+    @Previewable @State var selectedDetail: SettingsDetail?
+
+    SettingsView(selectedDetail: $selectedDetail)
         .environment(Store())
         .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

@@ -5,7 +5,8 @@
 
 import Foundation
 
-/// One row of rankings: a team's ranking in a stat, or one team's ranking within a stat.
+/// One row of rankings: a stat with the selected team's ranking in it, or a team with its
+/// ranking in one stat.
 ///
 /// Built once when rankings load or the sort order changes, so rows can display it
 /// without recomputing names or lookups during view updates.

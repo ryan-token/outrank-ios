@@ -13,13 +13,13 @@ struct ListSubscriptionOptionsView: View {
     @Environment(Store.self) private var store
 
     @State private var isShowingError = false
-    @State private var tapTrigger = 0
+    @State private var purchaseTrigger = 0
     @State private var errorTrigger = 0
 
     let product: Product
     var purchasingEnabled = true
 
-    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "ListSubscriptionOptionsView")
+    private static let logger = Logger(category: "ListSubscriptionOptionsView")
 
     private var isPurchased: Bool {
         store.purchasedIdentifiers.contains(product.id)
@@ -40,7 +40,7 @@ struct ListSubscriptionOptionsView: View {
             }
         }
         .alert("Your purchase could not be completed. Please try again.", isPresented: $isShowingError) { }
-        .sensoryFeedback(.success, trigger: tapTrigger)
+        .sensoryFeedback(.success, trigger: purchaseTrigger)
         .sensoryFeedback(.error, trigger: errorTrigger)
     }
 
@@ -49,13 +49,15 @@ struct ListSubscriptionOptionsView: View {
     }
 
     private func buy() async {
-        tapTrigger += 1
         do {
-            _ = try await store.purchase(product)
+            // Nil when the user cancels or the purchase is pending approval.
+            if try await store.purchase(product) != nil {
+                purchaseTrigger += 1
+            }
         } catch {
             errorTrigger += 1
             isShowingError = true
-            Self.logger.error("Failed purchase for \(product.id, privacy: .public): \(error.localizedDescription)")
+            Self.logger.error("Failed purchase for \(product.id, privacy: .public): \(String(describing: error))")
         }
     }
 }

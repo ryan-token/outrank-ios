@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ComparisonView: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var model = ComparisonModel()
     @State private var presentedPicker: ComparisonSlot?
     @State private var isShowingInfoSheet = false
@@ -19,7 +21,9 @@ struct ComparisonView: View {
                     ForEach(model.rows) { entry in
                         ComparisonRow(
                             title: entry.title,
+                            teamOne: model.teamOne,
                             teamOneRanking: entry.teamOneRanking,
+                            teamTwo: model.teamTwo,
                             teamTwoRanking: entry.teamTwoRanking
                         )
                     }
@@ -57,11 +61,13 @@ struct ComparisonView: View {
                 InfoView(source: .compare)
                     .presentationDetents([.medium, .large])
             }
-            .task(id: model.teamOne) {
-                await model.loadIfNeeded(.teamOne)
-            }
-            .task(id: model.teamTwo) {
-                await model.loadIfNeeded(.teamTwo)
+            .task(id: ComparisonLoadKey(
+                teamOne: model.teamOne,
+                teamTwo: model.teamTwo,
+                isActive: scenePhase == .active
+            )) {
+                guard scenePhase == .active else { return }
+                await model.loadStaleTeams()
             }
         }
     }
@@ -73,6 +79,5 @@ struct ComparisonView: View {
 
 #Preview {
     ComparisonView()
-        .environment(TabController())
         .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
 }

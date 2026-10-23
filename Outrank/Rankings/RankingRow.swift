@@ -7,20 +7,52 @@
 
 import SwiftUI
 
-/// A stat and the selected team's ranking in it.
+/// A name with a ranking on the trailing edge: a stat with the selected team's ranking,
+/// or a team with its ranking in one stat.
 struct RankingRow: View {
     let title: String
     let ranking: Int
+    var titleFont: Font = .body
+    var rankingFont: Font = .body
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        // LabeledContent stacks the ranking under the stat name at accessibility text
-        // sizes instead of squeezing both onto one line.
-        LabeledContent {
-            Text(Conversions.humanReadableRanking(for: ranking))
-                .foregroundStyle(RankingStyle.color(for: ranking))
-        } label: {
+        // A long name wraps beside the ranking, keeping every ranking on the trailing
+        // edge so they line up down the list. At accessibility text sizes there isn't
+        // room for both, so the ranking moves under the name.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading))
+            : AnyLayout(HStackLayout())
+
+        layout {
             Text(title)
-                .font(.headline)
+                .font(titleFont)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(Conversions.humanReadableRanking(for: ranking))
+                .font(rankingFont)
+                .foregroundStyle(RankingStyle.color(for: ranking))
+                .fixedSize()
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        List {
+            NavigationLink(value: "Long") {
+                RankingRow(title: "Third Down Conversion Pct Defense", ranking: 98, titleFont: .headline)
+            }
+
+            NavigationLink(value: "Short") {
+                RankingRow(title: "Passing Offense", ranking: 97, titleFont: .headline)
+            }
+
+            NavigationLink(value: "Unranked") {
+                RankingRow(title: "Blocked Kicks", ranking: RankingsResponse.unranked, titleFont: .headline)
+            }
         }
     }
 }

@@ -13,30 +13,31 @@ struct ComparisonHeader: View {
     let model: ComparisonModel
     @Binding var presentedPicker: ComparisonSlot?
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
     var body: some View {
-        // Chosen from the text size rather than measured, so the first layout pass on
-        // launch can't briefly pick the stacked arrangement. Each team gets half the
-        // width, so a long name wraps instead of crowding the swap button.
-        let isStacked = dynamicTypeSize.isAccessibilitySize
-        let layout = isStacked ? AnyLayout(VStackLayout()) : AnyLayout(HStackLayout(alignment: .top))
+        // Side by side at every text size, so the header never crowds out the list. Each
+        // team gets half the width, so a long name wraps instead of pushing the swap button.
+        HStack(alignment: .top) {
+            ComparisonTeamColumn(
+                team: model.teamOne,
+                average: model.teamOneAverage,
+                isLoading: model.isAwaitingFirstLoad(.teamOne),
+                slot: .teamOne,
+                alignment: .leading,
+                presentedPicker: $presentedPicker
+            )
 
-        layout {
-            column(.teamOne, alignment: isStacked ? .center : .leading)
             SwapTeamsButton(model: model)
-            column(.teamTwo, alignment: isStacked ? .center : .trailing)
-        }
-        .padding([.horizontal, .bottom])
-    }
 
-    private func column(_ slot: ComparisonSlot, alignment: HorizontalAlignment) -> ComparisonTeamColumn {
-        ComparisonTeamColumn(
-            team: model[team: slot],
-            average: slot == .teamOne ? model.teamOneAverage : model.teamTwoAverage,
-            slot: slot,
-            alignment: alignment,
-            presentedPicker: $presentedPicker
-        )
+            ComparisonTeamColumn(
+                team: model.teamTwo,
+                average: model.teamTwoAverage,
+                isLoading: model.isAwaitingFirstLoad(.teamTwo),
+                slot: .teamTwo,
+                alignment: .trailing,
+                presentedPicker: $presentedPicker
+            )
+        }
+        // Each column adds its own bottom spacing, matching the gap above its average.
+        .padding(.horizontal)
     }
 }

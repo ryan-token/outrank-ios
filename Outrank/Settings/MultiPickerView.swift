@@ -17,7 +17,7 @@ struct MultiPickerView: View {
 
     @State private var isShowingSaveError = false
 
-    private static let logger = Logger(subsystem: "com.ryantoken.Outrank", category: "MultiPickerView")
+    private static let logger = Logger(category: "MultiPickerView")
 
     var body: some View {
         // Built once per update, not once per row in the 130-plus row team list below.
@@ -75,7 +75,7 @@ struct MultiPickerView: View {
             try moc.saveIfNeeded()
         } catch {
             moc.rollback()
-            Self.logger.error("Failed to save favorites: \(error.localizedDescription)")
+            Self.logger.error("Failed to save favorites: \(String(describing: error))")
             isShowingSaveError = true
         }
     }

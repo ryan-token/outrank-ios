@@ -14,33 +14,28 @@ struct TopOrBottomFourView: View {
     let rankings: [String: Int]
 
     /// The team's four best or worst ranked stats, ignoring stats it isn't ranked in.
-    private var rankedFour: [(key: String, value: Int)] {
-        let ranked = rankings.filter { $0.value != RankingsResponse.unranked }
-
-        let sorted: [(key: String, value: Int)] = switch type {
-        case .topFour: ranked.sorted { ($0.value, $0.key) < ($1.value, $1.key) }
-        case .bottomFour: ranked.sorted { ($0.value, $1.key) > ($1.value, $0.key) }
+    private var rankedFour: [RankingEntry] {
+        let ranked = rankings.compactMap { stat, ranking in
+            ranking == RankingsResponse.unranked
+                ? nil
+                : RankingEntry(id: stat, title: Conversions.humanReadableStat(for: stat), ranking: ranking)
         }
 
-        return Array(sorted.prefix(4))
+        return Array(type.sortMethod.sorted(ranked).prefix(4))
     }
 
     var body: some View {
-        let rankedFour = rankedFour
+        let entries = rankedFour
 
         VStack {
             Text(type.title(for: team))
                 .foregroundStyle(.secondary)
 
-            if rankedFour.isEmpty {
+            if entries.isEmpty {
                 Text("No Data")
             } else {
-                ForEach(rankedFour, id: \.key) { item in
-                    WidgetRankingRow(
-                        stat: item.key,
-                        ranking: item.value,
-                        rankingColor: type.rankingColor
-                    )
+                ForEach(entries) { entry in
+                    WidgetRankingRow(title: entry.title, ranking: entry.ranking, rankingColor: type.rankingColor)
                 }
             }
         }

@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct WidgetRankingRow: View {
-    let stat: String
+    let title: String
     let ranking: Int
     let rankingColor: Color
 
     var body: some View {
         HStack {
-            Text("\(Conversions.humanReadableStat(for: stat)):")
+            Text("\(title):")
             Spacer()
             Text(Conversions.humanReadableRanking(for: ranking))
                 .foregroundStyle(rankingColor)

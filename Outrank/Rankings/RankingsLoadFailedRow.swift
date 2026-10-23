@@ -10,8 +10,7 @@ import SwiftUI
 struct RankingsLoadFailedRow: View {
     let stat: String
 
-    /// Incremented to retry. A binding rather than a closure, so SwiftUI can tell when
-    /// this row's inputs are unchanged and skip re-evaluating it.
+    /// Incremented to retry.
     @Binding var reloadAttempt: Int
 
     var body: some View {

@@ -19,6 +19,7 @@ struct SettingsRow: View {
                 Image(systemName: "arrow.up.forward")
                     .foregroundStyle(.tertiary)
                     .font(.headline)
+                    .accessibilityHidden(true)
             }
         } label: {
             SettingsLabel(title: title, icon: icon, iconColor: iconColor)
