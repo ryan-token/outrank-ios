@@ -30,9 +30,12 @@ struct RankingsView: View {
                 isShowingInfoSheet: $isShowingInfoSheet
             )
         } detail: {
+            // Monochrome controls are tinted here and on the sidebar's toolbar items, not on
+            // the split view: its tint fills the selected sidebar row, and `.primary` is
+            // white in dark mode, which hid the row's white text.
             RankingsDetailColumn(model: model, selectedStat: selectedStat)
+                .tint(.primary)
         }
-        .tint(.primary)
         .sheet(isPresented: $isShowingTeamPicker) {
             TeamPickerView(team: $model.team)
         }
@@ -45,11 +48,25 @@ struct RankingsView: View {
         }
         .onAppear {
             appUsedCount += 1
+
+            #if DEBUG
+            if let stat = ScreenshotMode.stat {
+                selectedStat = stat
+            }
+            if ScreenshotMode.teamSearch != nil {
+                isShowingTeamPicker = true
+            }
+            #endif
         }
     }
 
     private func refreshRankings() async {
         guard await model.load(), appUsedCount > 5 else { return }
+
+        #if DEBUG
+        // Screenshots never show the review prompt.
+        guard !ScreenshotMode.isEnabled else { return }
+        #endif
 
         // Ask at most once per version; the system also limits how often the prompt shows.
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""

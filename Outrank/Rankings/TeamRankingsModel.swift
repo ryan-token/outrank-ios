@@ -51,8 +51,19 @@ final class TeamRankingsModel {
         fetch: @escaping (String) async throws -> RankingsResponse = RankingsAPI.teamRankings(for:)
     ) {
         self.defaults = defaults
+        #if DEBUG
+        // Screenshots load frozen rankings rather than calling the API.
+        self.fetch = ScreenshotMode.isEnabled ? ScreenshotFixtures.teamRankings(for:) : fetch
+        #else
         self.fetch = fetch
+        #endif
         team = defaults.string(forKey: Self.teamKey) ?? Self.defaultTeam
+
+        #if DEBUG
+        if let sortMethod = ScreenshotMode.sortMethod {
+            self.sortMethod = sortMethod
+        }
+        #endif
     }
 
     /// The team's ranking in a stat, or ``RankingsResponse/unranked`` when it has none.

@@ -10,7 +10,12 @@ import SwiftUI
 @main
 struct OutrankApp: App {
     @State private var store = Store()
+    #if DEBUG
+    // Screenshots use sample favorites in memory, never the user's CloudKit store.
+    private let persistentContainer = ScreenshotMode.isEnabled ? PersistentContainer.preview : .shared
+    #else
     private let persistentContainer = PersistentContainer.shared
+    #endif
 
     var body: some Scene {
         WindowGroup {

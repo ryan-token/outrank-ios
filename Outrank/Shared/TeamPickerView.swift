@@ -79,6 +79,13 @@ struct TeamPickerView: View {
                 }
             }
             .sensoryFeedback(.success, trigger: chooseHapticTrigger)
+            #if DEBUG
+            .onAppear {
+                if let text = ScreenshotMode.teamSearch {
+                    search.text = text
+                }
+            }
+            #endif
             .alert("Couldn't Remove Favorite", isPresented: $isShowingRemoveError) {
             } message: {
                 Text("Please try again.")

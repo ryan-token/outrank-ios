@@ -16,6 +16,7 @@ struct RankingRow: View {
     var rankingFont: Font = .body
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.backgroundProminence) private var backgroundProminence
 
     var body: some View {
         // A long name wraps beside the ranking, keeping every ranking on the trailing
@@ -32,7 +33,9 @@ struct RankingRow: View {
 
             Text(Conversions.humanReadableRanking(for: ranking))
                 .font(rankingFont)
-                .foregroundStyle(RankingStyle.color(for: ranking))
+                // On a selected row's filled background the ranking color would blend
+                // in, so it matches the row's white text instead.
+                .foregroundStyle(backgroundProminence == .increased ? .white : RankingStyle.color(for: ranking))
                 // Takes its full width first, so the name is what wraps.
                 .layoutPriority(1)
         }

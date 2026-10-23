@@ -75,9 +75,20 @@ final class ComparisonModel {
     ) {
         self.defaults = defaults
         self.now = now
+        #if DEBUG
+        // Screenshots load frozen rankings rather than calling the API.
+        self.fetch = ScreenshotMode.isEnabled ? ScreenshotFixtures.teamRankings(for:) : fetch
+        #else
         self.fetch = fetch
+        #endif
         teamOne = defaults.string(forKey: Self.teamOneKey) ?? "Tulsa"
         teamTwo = defaults.string(forKey: Self.teamTwoKey) ?? "SMU"
+
+        #if DEBUG
+        if let sortMethod = ScreenshotMode.sortMethod {
+            self.sortMethod = sortMethod
+        }
+        #endif
     }
 
     /// The team in a slot. Writable, so a picker can bind straight to `$model[team: slot]`.

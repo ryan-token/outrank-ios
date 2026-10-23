@@ -41,14 +41,17 @@ struct RankingsSidebar: View {
             // into the vertical bar instead of holding a horizontal bar open.
             ToolbarItem(placement: .topBarLeading) {
                 Button("Choose Team", systemImage: "american.football", action: showTeamPicker)
+                    .tint(.primary)
             }
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Info", systemImage: "info.circle", action: showInfoSheet)
+                    .tint(.primary)
             }
 
             ToolbarItem(placement: .topBarTrailing) {
                 SortMenu(sortMethod: $model.sortMethod)
+                    .tint(.primary)
             }
         }
     }

@@ -22,7 +22,12 @@ final class StatRankingsModel {
     private static let logger = Logger(category: "StatRankingsModel")
 
     init(fetch: @escaping (String) async throws -> RankingsResponse = RankingsAPI.statRankings(for:)) {
+        #if DEBUG
+        // Screenshots load frozen rankings rather than calling the API.
+        self.fetch = ScreenshotMode.isEnabled ? ScreenshotFixtures.statRankings(for:) : fetch
+        #else
         self.fetch = fetch
+        #endif
     }
 
     func load(stat: String) async {

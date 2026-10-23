@@ -38,6 +38,13 @@ struct MainView: View {
             settingsDetail = detail
             router.clearRequest()
         }
+        #if DEBUG
+        .onAppear {
+            if let tab = ScreenshotMode.tab {
+                activeTab = tab
+            }
+        }
+        #endif
     }
 }
 
