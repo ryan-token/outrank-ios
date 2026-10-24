@@ -5,21 +5,13 @@
 //  Created by Ryan Token on 9/4/26.
 //
 
+import OSLog
 import WidgetKit
-
-nonisolated struct TeamRankingsEntry: TimelineEntry {
-    let date: Date
-
-    /// Carried on the entry rather than read by the view, so the name on screen always
-    /// describes the rankings alongside it — even if the user picks a different team
-    /// before WidgetKit asks for a new timeline.
-    let team: String
-
-    let rankings: [String: Int]
-}
 
 /// Shared by the top-four and bottom-four widgets; they differ only in how they sort.
 nonisolated struct TeamRankingsProvider: TimelineProvider {
+    private static let logger = Logger(category: "TeamRankingsProvider")
+
     func placeholder(in context: Context) -> TeamRankingsEntry {
         TeamRankingsEntry(date: .now, team: Self.selectedTeam, rankings: Self.sampleRankings)
     }
@@ -40,19 +32,35 @@ nonisolated struct TeamRankingsProvider: TimelineProvider {
         let team = Self.selectedTeam
 
         do {
-            let response = try await TeamFetcher.getTeamRankingsFor(team: team)
+            let response = try await RankingsAPI.teamRankings(for: team)
+            Self.cacheRankings(response.rankings, for: team)
             let entry = TeamRankingsEntry(date: .now, team: team, rankings: response.rankings)
             return Timeline(entries: [entry], policy: .after(Self.nextUpdateDate()))
         } catch {
-            print("Error fetching team rankings: \(error)")
-            let entry = TeamRankingsEntry(date: .now, team: team, rankings: [:])
+            Self.logger.error("Failed to fetch rankings for \(team, privacy: .public): \(String(describing: error))")
+            // Keep showing the last good rankings through a brief outage, and try again soon.
+            let entry = TeamRankingsEntry(date: .now, team: team, rankings: Self.cachedRankings(for: team))
             return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(3600)))
         }
     }
 
+    // The widget extension's own defaults: the app never reads this cache.
+    private static let cachedTeamKey = "CachedTeam"
+    private static let cachedRankingsKey = "CachedRankings"
+
+    private static func cacheRankings(_ rankings: [String: Int], for team: String) {
+        UserDefaults.standard.set(team, forKey: cachedTeamKey)
+        UserDefaults.standard.set(rankings, forKey: cachedRankingsKey)
+    }
+
+    /// The last rankings fetched for `team`, or none if the widget has since switched teams.
+    private static func cachedRankings(for team: String) -> [String: Int] {
+        guard UserDefaults.standard.string(forKey: cachedTeamKey) == team else { return [:] }
+        return UserDefaults.standard.dictionary(forKey: cachedRankingsKey) as? [String: Int] ?? [:]
+    }
+
     private static var selectedTeam: String {
-        UserDefaults(suiteName: AppGroup.groupId.rawValue)?
-            .string(forKey: "WidgetTeam") ?? "Air Force"
+        AppGroup.defaults?.string(forKey: AppGroup.widgetTeamKey) ?? AppGroup.defaultWidgetTeam
     }
 
     /// Enough spread that both the top-four and bottom-four widgets look right in the gallery.
@@ -67,12 +75,17 @@ nonisolated struct TeamRankingsProvider: TimelineProvider {
         "RedZoneDefense": 131
     ]
 
-    /// The scraper refreshes the rankings each morning, so ask again after it has run.
+    /// The scraper refreshes the rankings each morning, so ask again at the next 10am
+    /// Central, after it has run. A fixed time zone keeps every user's refresh after the
+    /// scraper's, wherever they are.
     private static func nextUpdateDate() -> Date {
-        let calendar = Calendar.current
-        var components = calendar.dateComponents([.year, .month, .day], from: .now)
-        components.day = (components.day ?? 0) + 1
-        components.hour = 10
-        return calendar.date(from: components) ?? .now.addingTimeInterval(3600)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Chicago") ?? .current
+
+        return calendar.nextDate(
+            after: .now,
+            matching: DateComponents(hour: 10, minute: 0, second: 0),
+            matchingPolicy: .nextTime
+        ) ?? .now.addingTimeInterval(3600)
     }
 }

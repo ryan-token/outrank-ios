@@ -7,10 +7,18 @@
 
 import Foundation
 
-nonisolated enum AppGroup: String {
-    case groupId = "group.com.ryantoken.teamrankings"
+/// Storage shared between the app and the widget extension.
+nonisolated enum AppGroup {
+    static let identifier = "group.com.ryantoken.teamrankings"
 
-    var containerURL: URL {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: rawValue)!
+    /// Defaults both processes can read. Computed rather than stored because
+    /// `UserDefaults` isn't `Sendable`; Foundation reuses the suite's storage, so this is cheap.
+    static var defaults: UserDefaults? {
+        UserDefaults(suiteName: identifier)
     }
+
+    /// The team the widgets show, chosen in Settings.
+    static let widgetTeamKey = "WidgetTeam"
+
+    static let defaultWidgetTeam = "Air Force"
 }

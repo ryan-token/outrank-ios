@@ -7,33 +7,45 @@
 
 import SwiftUI
 
+/// The two compared teams and their averages, each tappable to change it, with a swap
+/// control between them.
 struct ComparisonHeader: View {
-    let teamOne: String
-    let teamTwo: String
-    let onChooseTeamOne: () -> Void
-    let onChooseTeamTwo: () -> Void
-    let onSwap: () -> Void
+    let model: ComparisonModel
+    @Binding var presentedPicker: ComparisonSlot?
 
     var body: some View {
-        HStack {
-            Button(teamOne, action: onChooseTeamOne)
-                .buttonStyle(GrowingButton())
-                .accessibilityLabel("\(teamOne), Change Team One")
+        // Side by side at every text size, so the header never crowds out the list. Each
+        // team gets half the width, so a long name wraps instead of pushing the swap button.
+        HStack(alignment: .top) {
+            ComparisonTeamColumn(
+                team: model.teamOne,
+                average: model.teamOneAverage,
+                isLoading: model.isAwaitingFirstLoad(.teamOne),
+                slot: .teamOne,
+                alignment: .leading,
+                presentedPicker: $presentedPicker
+            )
 
-            Spacer()
+            SwapTeamsButton(model: model)
 
-            Button("Swap Teams", systemImage: "arrow.left.arrow.right.square", action: onSwap)
-                .labelStyle(.iconOnly)
-                .font(.title)
-                .foregroundStyle(.green)
-
-            Spacer()
-
-            Button(teamTwo, action: onChooseTeamTwo)
-                .buttonStyle(GrowingButton())
-                .accessibilityLabel("\(teamTwo), Change Team Two")
+            ComparisonTeamColumn(
+                team: model.teamTwo,
+                average: model.teamTwoAverage,
+                isLoading: model.isAwaitingFirstLoad(.teamTwo),
+                slot: .teamTwo,
+                alignment: .trailing,
+                presentedPicker: $presentedPicker
+            )
         }
-        .padding(.top, 5)
-        .padding(.horizontal, 25)
+        // Each column adds its own bottom spacing, matching the gap above its average.
+        .padding(.horizontal)
     }
+}
+
+#Preview("Long Team Names") {
+    let defaults = UserDefaults(suiteName: "ComparisonHeaderPreview") ?? .standard
+    defaults.set("Southern California", forKey: ComparisonModel.teamOneKey)
+    defaults.set("Tulsa", forKey: ComparisonModel.teamTwoKey)
+
+    return ComparisonHeader(model: ComparisonModel(defaults: defaults), presentedPicker: .constant(nil))
 }

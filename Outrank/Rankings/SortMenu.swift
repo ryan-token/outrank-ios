@@ -11,16 +11,15 @@ struct SortMenu: View {
     @Binding var sortMethod: SortMethod
 
     var body: some View {
-        Menu {
+        // A task-specific symbol rather than an ellipsis, so if the toolbar runs out of
+        // room this reads as "sort" inside the system overflow menu.
+        Menu("Sort Rankings", systemImage: "arrow.up.arrow.down") {
             Picker("Sort Rankings", selection: $sortMethod) {
                 ForEach(SortMethod.allCases) { method in
                     Text(method.menuLabel).tag(method)
                 }
             }
-        } label: {
-            Label("Sort", systemImage: "arrow.up.arrow.down")
         }
-        .accessibilityLabel("Sort Rankings")
         .sensoryFeedback(.success, trigger: sortMethod)
     }
 }

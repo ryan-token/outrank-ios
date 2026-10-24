@@ -8,14 +8,16 @@
 import Foundation
 
 extension String {
+    /// Inserts a space before every uppercase letter after the first, so "ScoringOffense"
+    /// becomes "Scoring Offense".
     nonisolated func camelCaseToWords() -> String {
-        return unicodeScalars.reduce("") {
-            if CharacterSet.uppercaseLetters.contains($1) {
-                if $0.count > 0 {
-                    return ($0 + " " + String($1))
-                }
+        var words = ""
+        for character in self {
+            if character.isUppercase, !words.isEmpty {
+                words.append(" ")
             }
-            return $0 + String($1)
+            words.append(character)
         }
+        return words
     }
 }

@@ -21,7 +21,10 @@ struct FavoriteTeamRow: View {
 
             Image(systemName: isFavorite ? "star.fill" : "star")
                 .foregroundStyle(.yellow)
+                .accessibilityHidden(true)
         }
         .contentShape(.rect)
+        // The star alone shows favorite status, so VoiceOver reads it as selected.
+        .accessibilityAddTraits(isFavorite ? .isSelected : [])
     }
 }

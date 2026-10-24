@@ -8,27 +8,25 @@
 import Foundation
 
 nonisolated enum Conversions {
-    static func getHumanReadableStat(for stat: String) -> String {
-        if stat != "DefensiveTDs" {
-            let cleanStat = stat.camelCaseToWords()
-            return cleanStat
-        } else {
-            return "Defensive TDs"
-        }
+    /// A readable stat name from the API's camel-cased key, such as "ScoringOffense"
+    /// becoming "Scoring Offense".
+    static func humanReadableStat(for stat: String) -> String {
+        stat == "DefensiveTDs" ? "Defensive TDs" : stat.camelCaseToWords()
     }
 
-    static func getHumanReadableRanking(for ranking: Int) -> String {
+    /// An English ordinal for a ranking, such as "1st" or "112th", or "Unknown" for a
+    /// team with no ranking in the stat.
+    static func humanReadableRanking(for ranking: Int) -> String {
         if ranking == RankingsResponse.unranked { return "Unknown" }
 
         // Teens always take "th" (11th, 12th, 13th, 111th, ...).
-        let lastTwo = ranking % 100
-        if (11...13).contains(lastTwo) { return "\(ranking)th" }
+        if (11...13).contains(ranking % 100) { return "\(ranking)th" }
 
-        switch ranking % 10 {
-        case 1: return "\(ranking)st"
-        case 2: return "\(ranking)nd"
-        case 3: return "\(ranking)rd"
-        default: return "\(ranking)th"
+        return switch ranking % 10 {
+        case 1: "\(ranking)st"
+        case 2: "\(ranking)nd"
+        case 3: "\(ranking)rd"
+        default: "\(ranking)th"
         }
     }
 }

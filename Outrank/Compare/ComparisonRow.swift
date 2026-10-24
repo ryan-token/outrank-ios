@@ -8,40 +8,35 @@
 import SwiftUI
 
 struct ComparisonRow: View {
-    let stat: String
+    let title: String
+    let teamOne: String
     let teamOneRanking: Int
+    let teamTwo: String
     let teamTwoRanking: Int
 
     var body: some View {
+        let teamOneText = Conversions.humanReadableRanking(for: teamOneRanking)
+        let teamTwoText = Conversions.humanReadableRanking(for: teamTwoRanking)
+
         VStack {
-            Text(Conversions.getHumanReadableStat(for: stat))
+            Text(title)
                 .font(.headline)
+                .multilineTextAlignment(.center)
 
             HStack {
-                Text(Conversions.getHumanReadableRanking(for: teamOneRanking))
-                    .foregroundStyle(color(for: teamOneRanking, comparedTo: teamTwoRanking))
+                Text(teamOneText)
+                    .foregroundStyle(RankingStyle.comparisonColor(for: teamOneRanking, comparedTo: teamTwoRanking))
 
                 Spacer()
 
-                Text(Conversions.getHumanReadableRanking(for: teamTwoRanking))
-                    .foregroundStyle(color(for: teamTwoRanking, comparedTo: teamOneRanking))
+                Text(teamTwoText)
+                    .foregroundStyle(RankingStyle.comparisonColor(for: teamTwoRanking, comparedTo: teamOneRanking))
             }
             .padding(.horizontal)
-            .padding(.vertical, 3)
         }
-    }
-
-    private func color(for ranking: Int, comparedTo other: Int) -> Color {
-        // A team with no ranking in this stat has not lost the comparison, so it
-        // gets a neutral tint rather than being colored as the worse of the two.
-        guard ranking != RankingsResponse.unranked else { return .secondary }
-
-        if ranking < other {
-            return .green
-        } else if ranking > other {
-            return .red
-        } else {
-            return .yellow
-        }
+        // Names each team, since only position and color tell the two rankings apart:
+        // "Scoring Offense: Tulsa 3rd, SMU 50th".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title): \(teamOne) \(teamOneText), \(teamTwo) \(teamTwoText)")
     }
 }

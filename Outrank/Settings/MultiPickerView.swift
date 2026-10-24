@@ -5,54 +5,70 @@
 //  Created by Ryan Token on 10/5/21.
 //
 
+import CoreData
+import OSLog
 import SwiftUI
 
+/// Lets the user star and unstar teams; starred teams appear first in the team picker.
 struct MultiPickerView: View {
     @Environment(\.managedObjectContext) private var moc
     @FetchRequest(fetchRequest: Favorite.allFavoritesFetchRequest, animation: .default)
     private var favorites: FetchedResults<Favorite>
 
-    private let allTeams = AllTeams.teams
+    @State private var search = TeamSearch()
+    @State private var isShowingSaveError = false
 
-    private var favoriteTeamNames: Set<String> {
-        Set(favorites.map(\.team))
-    }
-
-    private var uniqueFavorites: [Favorite] {
-        var seen = Set<String>()
-        return favorites.filter { seen.insert($0.team).inserted }
-    }
+    private static let logger = Logger(category: "MultiPickerView")
 
     var body: some View {
-        List {
-            Section("Favorite Teams") {
-                ForEach(uniqueFavorites) { favorite in
-                    Button {
-                        toggleSelection(team: favorite.team)
-                    } label: {
-                        FavoriteTeamRow(team: favorite.team, isFavorite: true)
-                    }
-                    .buttonStyle(.plain)
-                }
+        // Built once per update, not once per row in the 130-plus row team list below.
+        let favoriteTeamNames = Set(favorites.map(\.team))
+        let matchingFavorites = favorites.uniquedByTeam().filter { search.matches($0.team) }
 
-                if favorites.isEmpty {
-                    Text("No favorites yet ☹️")
-                        .foregroundStyle(.secondary)
+        List {
+            if !search.isSearching || !matchingFavorites.isEmpty {
+                Section("Favorite Teams") {
+                    ForEach(matchingFavorites) { favorite in
+                        Button {
+                            toggleSelection(team: favorite.team)
+                        } label: {
+                            FavoriteTeamRow(team: favorite.team, isFavorite: true)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if favorites.isEmpty {
+                        Text("No favorites yet ☹️")
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
-            Section("All Teams") {
-                ForEach(allTeams, id: \.self) { team in
-                    Button {
-                        toggleSelection(team: team)
-                    } label: {
-                        FavoriteTeamRow(team: team, isFavorite: favoriteTeamNames.contains(team))
+            if !search.matchingTeams.isEmpty {
+                Section("All Teams") {
+                    ForEach(search.matchingTeams) { team in
+                        Button {
+                            toggleSelection(team: team.name)
+                        } label: {
+                            FavoriteTeamRow(team: team.name, isFavorite: favoriteTeamNames.contains(team.name))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
+        .overlay {
+            if search.matchingTeams.isEmpty {
+                ContentUnavailableView.search
+            }
+        }
+        .searchable(text: $search.text, prompt: "Search Teams")
+        .navigationTitle("Favorites")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Couldn't Update Favorites", isPresented: $isShowingSaveError) {
+        } message: {
+            Text("Please try again.")
+        }
     }
 
     private func toggleSelection(team: String) {
@@ -70,7 +86,16 @@ struct MultiPickerView: View {
         do {
             try moc.saveIfNeeded()
         } catch {
-            print("[MultiPickerView] Failed to save favorites: \(error)")
+            moc.rollback()
+            Self.logger.error("Failed to save favorites: \(String(describing: error))")
+            isShowingSaveError = true
         }
+    }
+}
+
+#Preview {
+    NavigationStack {
+        MultiPickerView()
+            .environment(\.managedObjectContext, PersistentContainer.preview.viewContext)
     }
 }

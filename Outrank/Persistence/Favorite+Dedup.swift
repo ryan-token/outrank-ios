@@ -6,8 +6,11 @@
 //
 
 import CoreData
+import OSLog
 
 extension Favorite {
+    nonisolated private static let dedupLogger = Logger(category: "FavoriteDedup")
+
     /// Removes duplicate `Favorite` rows that share the same team name.
     ///
     /// CloudKit forbids `@Attribute(.unique)`, so duplicates can appear when the
@@ -39,8 +42,17 @@ extension Favorite {
 
                 try context.saveIfNeeded()
             } catch {
-                print("[FavoriteDedup] Dedup failed: \(error)")
+                dedupLogger.error("Dedup failed: \(String(describing: error))")
             }
         }
+    }
+}
+
+extension Sequence where Element == Favorite {
+    /// One favorite per team, even if duplicate rows have synced in from another device
+    /// and not been removed yet.
+    func uniquedByTeam() -> [Favorite] {
+        var seenTeams = Set<String>()
+        return filter { seenTeams.insert($0.team).inserted }
     }
 }
